@@ -1,0 +1,7 @@
+{
+    "n_layer": 28,
+    "n_embd": 2560,
+    "n_head": 20,
+    "n_positions": 1024,
+    "activation_function": "gelu"
+}

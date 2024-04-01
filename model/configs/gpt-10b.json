@@ -1,0 +1,6 @@
+{
+    "n_layer": 32,
+    "n_embd": 4608,
+    "n_head": 36,
+    "n_positions": 2048
+}
