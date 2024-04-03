@@ -1,2 +1,2 @@
-# moreh-tutorial
-Tutorial code for moreh docs
+# moreh-quickstart
+Quickstart code for moreh docs
