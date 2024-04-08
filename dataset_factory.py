@@ -1,7 +1,5 @@
 from dataset.text_dataset import C4Dataset, TextDataset
 
-from dataset.text_image_dataset import get_image_dataloaders, get_text_image_pair_dataloaders
-
 ## llava
 from dataset import conversation as conversation_lib
 
@@ -65,69 +63,30 @@ def get_dataloaders(args, tokenizer, **kwargs):
     train_batch_size = args.train_batch_size // args.grad_accumulation_steps
     val_batch_size = args.val_batch_size // args.grad_accumulation_steps
 
-    if args.model_type == ModelNames.LLAVA:
-        conv_template_map = {ModelNames.LLAVA: "v1" if 'llava' in args.train_dataset_type else "plain"}
-        template_name = conv_template_map[args.model_type]
-        conversation_lib.default_conversation = conversation_lib.conv_templates[template_name]
-        train_data_loader, val_data_loader = get_text_image_pair_dataloaders(tokenizer,
-                                                                             path=args.train_dataset,
-                                                                             dataset_name=args.train_dataset_type,
-                                                                             image_size=kwargs['img_sizes'],
-                                                                             num_workers=args.num_workers,
-                                                                             train_batch_size=args.train_batch_size,
-                                                                             val_batch_size=args.val_batch_size,
-                                                                             pin_memory=True,
-                                                                             drop_last=False,
-                                                                             seed=args.seed,
-                                                                             train_split_ratio=args.train_split_ratio,
-                                                                             **kwargs)
-        return train_data_loader, val_data_loader
+    train_dataset_cls, train_dataset_kwargs = get_dataset_class_and_kwargs(args.train_dataset_type,
+                                                                            args.train_file_idx)
+    val_dataset_cls, val_dataset_kwargs = get_dataset_class_and_kwargs(args.val_dataset_type, args.valid_file_idx)
+    val_dataset = val_dataset_cls(tokenizer,
+                                    args.overwrite_val_dataset_cache,
+                                    args.val_dataset,
+                                    args.block_size,
+                                    cleaning=True,
+                                    **val_dataset_kwargs)
 
-    elif args.model_type == ModelNames.DIFFUSION:
-        train_data_loader, val_data_loader = get_image_dataloaders(
-            args.train_dataset,
-            image_size=(kwargs['img_sizes'], kwargs['img_sizes']),
-            num_workers=args.num_workers,
-            train_batch_size=args.train_batch_size,
-            val_batch_size=args.val_batch_size,
-        )
-        # WARNING: If the Image dataset includes the torchvision.transforms, which is the nn.Module,
-        # the code will be raise the below error due to the transform.training = True
-        #
-        #  RuntimeError: training argument[True] must be the same as torch.is_grad_enabled()[False]
-        #
-        # Currently, manually seting transform.eval() below can resolve it.
-        for img_transform in val_data_loader.dataset.transform.transforms:
-            if hasattr(img_transform, 'eval'):
-                img_transform.eval()
+    val_data_loader = torch.utils.data.DataLoader(val_dataset,
+                                                    batch_size=val_batch_size,
+                                                    num_workers=args.num_workers)
 
-        return train_data_loader, val_data_loader
+    assert len(val_data_loader) != 0, f"Number of the validation dataset is zero. Check '--val-dataset.'"
 
-    else:
-        train_dataset_cls, train_dataset_kwargs = get_dataset_class_and_kwargs(args.train_dataset_type,
-                                                                               args.train_file_idx)
-        val_dataset_cls, val_dataset_kwargs = get_dataset_class_and_kwargs(args.val_dataset_type, args.valid_file_idx)
-        val_dataset = val_dataset_cls(tokenizer,
-                                      args.overwrite_val_dataset_cache,
-                                      args.val_dataset,
-                                      args.block_size,
-                                      cleaning=True,
-                                      **val_dataset_kwargs)
+    train_dataset = train_dataset_cls(tokenizer, args.overwrite_train_dataset_cache, args.train_dataset,
+                                        args.block_size, **train_dataset_kwargs)
 
-        val_data_loader = torch.utils.data.DataLoader(val_dataset,
-                                                      batch_size=val_batch_size,
-                                                      num_workers=args.num_workers)
+    train_data_loader = torch.utils.data.DataLoader(train_dataset,
+                                                    batch_size=train_batch_size,
+                                                    num_workers=args.num_workers,
+                                                    drop_last=True)
 
-        assert len(val_data_loader) != 0, f"Number of the validation dataset is zero. Check '--val-dataset.'"
+    assert len(train_data_loader) != 0, f"Number of the training dataset is zero. Check '--train-dataset.'"
 
-        train_dataset = train_dataset_cls(tokenizer, args.overwrite_train_dataset_cache, args.train_dataset,
-                                          args.block_size, **train_dataset_kwargs)
-
-        train_data_loader = torch.utils.data.DataLoader(train_dataset,
-                                                        batch_size=train_batch_size,
-                                                        num_workers=args.num_workers,
-                                                        drop_last=True)
-
-        assert len(train_data_loader) != 0, f"Number of the training dataset is zero. Check '--train-dataset.'"
-
-        return train_data_loader, val_data_loader
+    return train_data_loader, val_data_loader
