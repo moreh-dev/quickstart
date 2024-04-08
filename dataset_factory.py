@@ -1,40 +1,12 @@
 from dataset.text_dataset import C4Dataset, TextDataset
 
-## llava
-from dataset import conversation as conversation_lib
-
 import torch
-from transformers import AutoTokenizer, CLIPImageProcessor, LlavaProcessor
+from transformers import AutoTokenizer
 from namespace import ModelNames
 
 
 def get_dataloader_kwargs(args, model_config, **kwargs):
     dataloader_kwargs = {}
-    if args.model_type == ModelNames.LLAVA:
-        processor_classes = {
-            ModelNames.LLAVA: LlavaProcessor,
-        }
-
-        image_size = model_config.__dict__['vision_config'].image_size
-        image_processor = CLIPImageProcessor(size={"shortest_edge": image_size},
-                                             crop_size={
-                                                 "height": image_size,
-                                                 "width": image_size
-                                             })
-        tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_name_or_path,
-                                                  model_input_names=["input_ids", "attention_mask"])
-        processor = processor_classes[args.model_type](tokenizer=tokenizer, image_processor=image_processor)
-
-        dataloader_kwargs = {
-            'img_sizes': image_size,
-            'processor': processor,
-            'group_by_modality': args.group_by_modality_length
-        }
-        args.image_size = dataloader_kwargs['img_sizes']
-
-    elif args.model_type == ModelNames.DIFFUSION:
-        dataloader_kwargs = {'img_sizes': model_config.__dict__['image_size']}
-        args.image_size = dataloader_kwargs['img_sizes']
 
     return dataloader_kwargs
 
