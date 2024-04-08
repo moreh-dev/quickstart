@@ -3,19 +3,19 @@ import time
 import torch
 from loguru import logger
 
-from hub_model.utils.batch_utils import BatchProcessor
+from utils.batch_utils import BatchProcessor
 from transformers.utils import ModelOutput
 
-from hub_model.namespace import MetricNames
-from hub_model.utils import (
+from namespace import MetricNames
+from utils import (
     create_attn_mask,
     log_evaluation,
     logging_helper,
     mask_pads,
     metrics,
 )
-from hub_model.utils.metrics import maybe_evaluate_metric
-from hub_model.utils.train_utils import ModelNames
+from utils.metrics import maybe_evaluate_metric
+from utils.train_utils import ModelNames
 
 
 def get_metrics(metric_names):
