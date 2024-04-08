@@ -2,8 +2,8 @@ from typing import final, Union
 import torch
 import numpy as np
 from abc import abstractmethod
-from hub_model.namespace import ExplicitEnum, MetricNames
-from hub_model.utils.processor_utils import EvalAIAnswerProcessor
+from namespace import ExplicitEnum, MetricNames
+from utils.processor_utils import EvalAIAnswerProcessor
 
 
 class ValueNames(ExplicitEnum):

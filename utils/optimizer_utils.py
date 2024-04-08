@@ -1,8 +1,8 @@
 import torch
 from transformers import Adafactor, get_linear_schedule_with_warmup, get_cosine_schedule_with_warmup
 from torch.optim import Adam, AdamW
-from hub_model.model.lr_scheduler import InverseSquareRootLRScheduler, LinearWarmupPolyDecayScheduler, StaticScheduler
-from hub_model.namespace import SchedulerNames, OptimizerNames
+from model.lr_scheduler import InverseSquareRootLRScheduler, LinearWarmupPolyDecayScheduler, StaticScheduler
+from namespace import SchedulerNames, OptimizerNames
 from loguru import logger
 
 try:

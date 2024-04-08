@@ -1,11 +1,11 @@
 import time
 from typing import Union
 import torch
-from hub_model.utils import save_checkpoint, log_training, logging_helper
+from utils import save_checkpoint, log_training, logging_helper
 from loguru import logger
 from typing import Union
-from hub_model.namespace import ModelNames, OptimizerNames
-from hub_model.utils.batch_utils import BatchProcessor
+from namespace import ModelNames, OptimizerNames
+from utils.batch_utils import BatchProcessor
 
 
 class TrainingArgs:
