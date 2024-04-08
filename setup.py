@@ -44,7 +44,7 @@ setuptools.setup(name="moreh_model_hub",
                      "torch==1.13.1", "torchaudio==0.13.1", "torchvision==0.14.1",
                      "transformers==4.36.2", "tokenizers>=0.14", "datasets==2.14.5", "loguru==0.5.3", "sentencepiece",
                      "jsonstream==0.0.1", "tqdm>=4.27", "numpy==1.23.0",
-                     "timm==0.4.12", "evaluate",
+                     "timm==0.4.12", "evaluate", "albumentations"
                      "packaging==23.1",
                      "pre-commit", "webdataset",
                      "protobuf==3.13.0"
