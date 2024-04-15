@@ -1,12 +1,14 @@
 import copy
 import torch
+import sys, os
+sys.path.append(os.path.join(os.path.dirname(sys.path[0]), 'model'))
 
 from loguru import logger
 from datasets import load_dataset
 from argparse import ArgumentParser
 
 from transformers import AdamW, AutoTokenizer
-from model.modeling_mistral import MistralForCausalLM
+from modeling_mistral import MistralForCausalLM
 
 
 # Model Name
