@@ -75,7 +75,7 @@ def parse_args():
     parser.add_argument(
         "--dataset-name-or-path",
         type=str,
-        default="iamtarun/python_code_instructions_18k_alpaca",
+        default="./qwen_dataset.pt",
         help="dataset name or path",
     )
     parser.add_argument(
@@ -102,7 +102,7 @@ def main(args):
     model.cuda()
 
     # Apply preprocess function
-    dataset = torch.load("qwen_dataset.pt")
+    dataset = torch.load(args.dataset_name_or_path)
 
     # Create a DataLoader for the training set
     train_dataloader = torch.utils.data.DataLoader(
@@ -158,15 +158,6 @@ def main(args):
     print("Saving Model...")
     model.save_pretrained(args.save_dir)
     print(f"Model saved in {args.save_dir}")
-
-    plt.figure(figsize=(10,5))
-    plt.plot(loss_values, label="Training Loss")
-    plt.title("Training Loss")
-    plt.xlabel("Batch Number")
-    plt.ylabel("Loss")
-    plt.legend()
-
-    plt.savefig("training_qwen_loss.png")
 
 if __name__ == "__main__":
     args = parse_args()
