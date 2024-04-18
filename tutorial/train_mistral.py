@@ -6,8 +6,7 @@ sys.path.append(os.path.join(os.path.dirname(sys.path[0]), 'model'))
 from loguru import logger
 from datasets import load_dataset
 
-from transformers import AdamW, AutoTokenizer
-from modeling_mistral import MistralForCausalLM
+from transformers import AdamW, AutoTokenizer, AutoModelForCausalLM
 
 
 # Model Name
@@ -38,7 +37,7 @@ def main():
     torch.moreh.option.enable_advanced_parallelization()
 
     # Load base model and tokenizer
-    model = MistralForCausalLM.from_pretrained(MODEL_NAME)
+    model = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     
     # Prepare the model for training on Accelerator
