@@ -33,6 +33,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type = str, default = "cerebras/Cerebras-GPT-13B")
     parser.add_argument("--max-length", type = int, default = 512)
-    parser.add_argument("--model-save-path", type =str, default="./gpt-checkpoint")
+    parser.add_argument("--model-save-path", type =str, default="./gpt_checkpoint")
     args = parser.parse_args()
     inference(args)
