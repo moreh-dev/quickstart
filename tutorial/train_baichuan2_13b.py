@@ -57,7 +57,7 @@ def parse_args():
     parser.add_argument(
         "--block-size", 
         type=int, 
-        default=512, 
+        default=1024, 
         help="max input token length"
     )
     parser.add_argument(
