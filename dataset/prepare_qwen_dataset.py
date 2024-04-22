@@ -56,8 +56,8 @@ def main():
     dataset = dataset.map(preprocess)
 
     print("Saving datset into torch format...")
-    torch.save(dataset, 'qwen_dataset.pt')
-    print("Dataset saved as ./qwen_dataset.pt")
+    torch.save(dataset, 'python_code_instructions_18k_alpaca.pt')
+    print("Dataset saved as ./python_code_instructions_18k_alpaca.pt")
 
         
 if __name__ == "__main__":
