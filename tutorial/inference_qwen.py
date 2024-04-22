@@ -1,22 +1,12 @@
 import torch
 import sys, os
-sys.path.append(os.path.join(os.path.dirname(sys.path[0]), 'model'))
 
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
 
-# Saved model path
-CHECKPOINT = "./qwen_code_generation"
-
-# Model name for tokenizer
-MODEL_NAME = "Qwen/Qwen1.5-7B"
-
-# Max New Tokens for generating
-MAX_NEW_TOKENS = 512
-
 # Load trained model
-model = AutoModelForCausalLM.from_pretrained(CHECKPOINT)
-tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=True)
+model = AutoModelForCausalLM.from_pretrained("./qwen_code_generation")
+tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen1.5-7B", trust_remote_code=True)
 model.eval()
 model.cuda()
 
@@ -27,7 +17,7 @@ generated_text_ids = input_ids.cuda()
 
 with torch.no_grad():
     # Generate python function
-    output = model.generate(generated_text_ids, max_new_tokens=MAX_NEW_TOKENS)
+    output = model.generate(generated_text_ids, max_new_tokens=512)
 
     # Decode generated tokens
     generated_text = tokenizer.decode(output[0], skip_special_tokens=True)
