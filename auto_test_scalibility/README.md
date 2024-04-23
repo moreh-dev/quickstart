@@ -25,3 +25,7 @@ Tmux의 다른 Window 혹은 다른 Pane에서 `get_moreh_log.sh`를 실행하�
 위에서 실행한 스크립트의 결과는 모두 logs/ 에 모이게 됩니다.
 `parse.sh` 를 실행하면 SDA와 batch size에 따른 max throughput, max mem usage가 출력됩니다. 
 
+출력 예시)
+<img width="784" alt="image" src="https://github.com/moreh-dev/quickstart/assets/138426917/3f13ae7d-6d1c-420f-8d4e-f1845dc86b2c">
+
+
