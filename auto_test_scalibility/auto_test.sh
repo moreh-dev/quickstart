@@ -31,7 +31,7 @@ function show_help() {
 
 function run_python() {
     echo "batch size : $input_batch_size, log path : logs/${model_name}_${sda}_batch${input_batch_size}_block${input_block_size}.log"
-    python $PYTHON_SCRIPT --epochs 1 --batch-size $input_batch_size --block-size $input_block_size > "logs/${model_name}_${sda}_batch${input_batch_size}_block${input_block_size}.log" 2>&1
+    timeout 40m python $PYTHON_SCRIPT --epochs 1 --batch-size $input_batch_size --block-size $input_block_size > "logs/${model_name}_${sda}_batch${input_batch_size}_block${input_block_size}.log" 2>&1
 }
 
 

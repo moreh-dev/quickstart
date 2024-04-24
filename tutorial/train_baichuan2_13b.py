@@ -43,7 +43,7 @@ def parse_args():
         default='./baichuan_dataset.pt',
     )
     parser.add_argument(
-        "--num-train-epochs", 
+        "--epochs", 
         type=int, 
         default=3, 
         help="num training epochs"
@@ -113,12 +113,12 @@ def main(args):
     optim = AdamW(model.parameters(), lr=args.lr)
 
     # Calculate total training steps
-    total_step = len(train_dataloader) * args.num_train_epochs
+    total_step = len(train_dataloader) * args.epochs
     token_per_step = args.block_size * args.batch_size
 
     logger.add("file.log", format="{time} {level} {message}", level="INFO")
     # Strat training
-    for epoch in range(args.num_train_epochs):
+    for epoch in range(args.epochs):
         for step, batch in enumerate(train_dataloader, start=1):
             input_ids = batch["input_ids"]
             attn_mask = batch["attention_mask"]
