@@ -27,5 +27,3 @@ Tmux의 다른 Window 혹은 다른 Pane에서 `get_moreh_log.sh`를 실행하�
 
 출력 예시)
 <img width="784" alt="image" src="https://github.com/moreh-dev/quickstart/assets/138426917/3f13ae7d-6d1c-420f-8d4e-f1845dc86b2c">
-
-

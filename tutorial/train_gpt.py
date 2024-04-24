@@ -50,7 +50,7 @@ def train(args):
     optim = AdamW(model.parameters(), lr=args.lr)
 
     # Calculate total training steps
-    total_step = len(train_dataloader) * args.epoch
+    total_step = len(train_dataloader) * args.epochs
     with open("gpt_log.log", "w") as f:
         f.write("step,loss\n")
 
