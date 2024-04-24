@@ -63,7 +63,7 @@ def parse_args():
     parser.add_argument(
         "--lr", 
         type=float, 
-        default=0.00001, 
+        default=0.00005, 
         help="learning rate"
     )
     parser.add_argument(
@@ -115,6 +115,8 @@ def main(args):
     # Calculate total training steps
     total_step = len(train_dataloader) * args.num_train_epochs
     token_per_step = args.block_size * args.batch_size
+
+    logger.add("file.log", format="{time} {level} {message}", level="INFO")
     # Strat training
     for epoch in range(args.num_train_epochs):
         for step, batch in enumerate(train_dataloader, start=1):
