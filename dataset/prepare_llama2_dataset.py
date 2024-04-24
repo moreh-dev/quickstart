@@ -9,44 +9,41 @@ def main():
 
     # Load tokenizer
     print("Loading Tokenizer...")
-    tokenizer = AutoTokenizer.from_pretrained(
-        "Qwen/Qwen1.5-7B",
-        padding_side="left",
-    )
+    tokenizer = AutoTokenizer.from_pretrained("./llama-2-13b-hf")
 
-    # Use eos token id as pad token id
-    tokenizer.pad_token_id = tokenizer.eos_token_id
+    # Set pad token
+    tokenizer.pad_token_id = 0
 
-    print("Downloading dataset...")
     # Load dataset and set its format to PyTorch tensors
-    dataset = load_dataset("iamtarun/python_code_instructions_18k_alpaca").with_format("torch")
+    print("Downloading dataset...")
+    dataset = load_dataset("cnn_dailymail", '3.0.0').with_format("torch")
 
     # Construct a formatted prompt
     def create_prompt(prompt):
-        full_prompt = f"{prompt['prompt']}<|endoftext|>"
+        full_prompt = f"[SUMMARIZE] {prompt['article']} [/SUMMARIZE]\n{prompt['highlights']}</s>"
         return full_prompt
 
     # Tokenize and prepare the input prompt
     def preprocess(prompt):
-        tokenized = tokenizer(
+        input_ids = tokenizer(
             create_prompt(prompt),
+            return_attention_mask=False,
+            return_token_type_ids=False,
             padding="max_length",
             truncation=True,
             max_length=2048,
-        )
+        )["input_ids"]
 
-        return {
-            "input_ids": tokenized["input_ids"], 
-            "attention_mask": tokenized["attention_mask"],
-        }
+        return {"input_ids": input_ids}
+
 
     print("Preprocessing dataset...")
     # Preprocess dataset
     dataset = dataset.map(preprocess)
 
     print("Saving datset into torch format...")
-    torch.save(dataset, 'python_code_instructions_18k_alpaca.pt')
-    print("Dataset saved as ./python_code_instructions_18k_alpaca.pt")
+    torch.save(dataset, './cnn_dailymail.pt')
+    print("Dataset saved as ./cnn_dailymail.pt")
 
         
 if __name__ == "__main__":
