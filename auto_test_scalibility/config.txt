@@ -1,0 +1,6 @@
+model_name = "yiko"
+model_arguments = [
+batch_size = 1024, block_size = 1024, sda_num = 6
+batch_size = 1024, block_size = 2048, sda_num = 6
+]
+
