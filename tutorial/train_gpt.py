@@ -37,7 +37,7 @@ def train(args):
         shuffle=True,
         drop_last=True,
     )
-    token_per_iter = args.batch_size * 2048
+    token_per_iter = args.batch_size * args.block_size
     
     # Mask pad tokens for training
     def mask_pads(input_ids, attention_mask, ignore_index = -100):
@@ -55,7 +55,7 @@ def train(args):
         f.write("step,loss\n")
 
     # Start training
-    for epoch in range(args.epoch):
+    for epoch in range(args.epochs):
         for i, batch in enumerate(train_dataloader):
 
             start = time.time()
@@ -94,9 +94,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type = str, default = "cerebras/Cerebras-GPT-13B")
     parser.add_argument("--batch-size", type = int, default = 64)
-    parser.add_argument("--max-length", type = int, default = 2048)
+    parser.add_argument("--block-size", type = int, default = 2048)
     parser.add_argument("--lr", type=float, default=0.00001)
-    parser.add_argument("--epoch", type=int, default=4)
+    parser.add_argument("--epochs", type=int, default=4)
     parser.add_argument("--dataset", type =str, default="./gpt_dataset.pt")
     parser.add_argument("--model-save-path", type =str, default="./gpt_checkpoint")
     parser.add_argument("--log-interval", type =int, default=10)
