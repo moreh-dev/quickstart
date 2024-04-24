@@ -1,9 +1,11 @@
 import copy
+import time
 import torch
 
 from loguru import logger
 from datasets import load_dataset
 from argparse import ArgumentParser
+#from transformers import AdamW, AutoModelForCausalLM, AutoTokenizer
 from transformers import AdamW, LlamaForCausalLM, LlamaTokenizer
 
 
@@ -13,17 +15,11 @@ def create_mask(input_ids, tokenizer):
     return (input_ids != pad_token_ids).long()
 
 # Mask pad tokens
-def mask_pads(inputs, tokenizer, ignore_index = -100):
+def mask_pads(inputs, tokenizer, ignore_index=-100):
     idx_mask = create_mask(inputs, tokenizer)
     labels = copy.deepcopy(inputs)
     labels[~idx_mask.bool()] = ignore_index
     return labels
-
-# Construct a formatted prompt
-def create_prompt(prompt):
-    full_prompt = f"[SUMMARIZE] {prompt['article']} [/SUMMARIZE]\n{prompt['highlights']}"
-    return full_prompt
-
 
 # Arguments    
 def parse_args():
@@ -31,6 +27,7 @@ def parse_args():
     parser.add_argument(
         "--model-name-or-path",
         type=str,
+        default="./llama-2-13b-hf",
         help="model name or path",
     )
     parser.add_argument(
@@ -42,13 +39,13 @@ def parse_args():
     parser.add_argument(
         "--batch-size", 
         type=int, 
-        default=64, 
+        default=256, 
         help="train bacth size"
     )
     parser.add_argument(
         "--block-size", 
         type=int, 
-        default=1024, 
+        default=2048, 
         help="max input token length"
     )
     parser.add_argument(
@@ -66,7 +63,7 @@ def parse_args():
     parser.add_argument(
         "--save-model-dir", 
         type=str, 
-        default="./outputs", 
+        default="./llama2_summarization", 
         help="path to save model"
     )
     args = parser.parse_args()
@@ -77,13 +74,13 @@ def parse_args():
 
 def main(args):
     
-    # Apply Advanced Parallelization
-    torch.moreh.option.enable_advanced_parallelization()
-    
     # Load base model and tokenizer
     tokenizer = LlamaTokenizer.from_pretrained(args.model_name_or_path)
     model = LlamaForCausalLM.from_pretrained(args.model_name_or_path)
 
+    # Apply Advanced Parallelization
+    torch.moreh.option.enable_advanced_parallelization()
+    
     # Set pad token
     tokenizer.pad_token_id = 0
     
@@ -91,24 +88,8 @@ def main(args):
     model.cuda()
     model.train()
 
-    # Load CNN/Daily Mail dataset and set its format to PyTorch tensors
-    dataset = load_dataset("cnn_dailymail", '3.0.0').with_format("torch")
-    
-    
-    # Tokenize and prepare the input prompt
-    def preprocess(prompt):
-        input_ids = tokenizer(
-            create_prompt(prompt),
-            return_attention_mask=False,
-            return_token_type_ids=False,
-            padding="max_length",
-            truncation=True,
-            max_length=args.block_size,
-        )['input_ids']
-        return {"input_ids": input_ids}
-    
-    # Apply preprocess function
-    dataset = dataset.map(preprocess)
+    # Load dataset
+    dataset = torch.load("./cnn_dailymail.pt")
 
     # Create a DataLoader for the training set
     train_dataloader = torch.utils.data.DataLoader(
@@ -127,6 +108,8 @@ def main(args):
     # Strat training
     for epoch in range(args.num_train_epochs):
         for step, batch in enumerate(train_dataloader, start=1):
+            #breakpoint()
+            start_time = time.perf_counter()
             input_ids = batch["input_ids"]
             inputs, labels = input_ids, mask_pads(input_ids, tokenizer)
             attn_mask = create_mask(inputs, tokenizer)
@@ -141,13 +124,16 @@ def main(args):
             
             optim.step()
             model.zero_grad(set_to_none=True)
+
+            duration = time.perf_counter() - start_time
+            throughput = (args.batch_size * args.block_size) / duration
             if step % args.log_interval == 0:
-                logger.info(f"[Step {step+(epoch*len(train_dataloader))}/{total_step}] Loss: {loss.item()}")
+                logger.info(f"[Step {step+(epoch*len(train_dataloader))}/{total_step}] | Loss: {loss.item()} | Duration: {duration:.2f} | Throughput: {throughput:.2f} tokens/sec")
     
     print("Training Done")
     print("Saving Model...")
     # Save trained model
-    model = model.to("cpu")
+    #model = model.to("cpu")
     model.save_pretrained(args.save_model_dir)
     print(f"Model saved in {args.save_model_dir}")
 
