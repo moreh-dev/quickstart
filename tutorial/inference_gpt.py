@@ -3,14 +3,15 @@ import sys, os
 import argparse
 from transformers import AutoModelForCausalLM, AdamW, AutoTokenizer
 
-QUERY = ""
+QUERY = """
+"""
 
 def inference(args):
     # Saved model path
     # Max New Tokens for generating
     
     # Load trained model
-    model = AutoModelForCausalLM.from_pretrained(args.model_save_path)
+    model = AutoModelForCausalLM.from_pretrained(args.model_save_path, torch_dtype=torch.bfloat16)
     tokenizer = AutoTokenizer.from_pretrained(args.model)
     model.cuda()
     model.eval()

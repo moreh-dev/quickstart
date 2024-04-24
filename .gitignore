@@ -171,3 +171,9 @@ cython_debug/
 # Models
 *.safetensors
 *.json
+
+# Notebooks
+*.ipynb
+
+#checkpoints
+*_checkpoint
