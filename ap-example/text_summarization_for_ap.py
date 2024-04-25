@@ -31,6 +31,7 @@ def parse_args():
     parser.add_argument(
         "--model-name-or-path",
         type=str,
+        default="./llama-2-13b-hf"
         help="model name or path",
     )
     parser.add_argument(

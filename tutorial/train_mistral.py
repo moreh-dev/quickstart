@@ -13,7 +13,7 @@ def parse_args():
     parser.add_argument(
         "--model-name-or-path",
         type=str,
-        default="mistralai/Mistral-7B-v0.1",
+        default="./mistral-7b",
         help="Hugging Face Model",
     )
     parser.add_argument(

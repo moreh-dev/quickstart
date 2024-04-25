@@ -5,7 +5,6 @@ import torch
 from loguru import logger
 from datasets import load_dataset
 from argparse import ArgumentParser
-#from transformers import AdamW, AutoModelForCausalLM, AutoTokenizer
 from transformers import AdamW, LlamaForCausalLM, LlamaTokenizer
 
 
@@ -105,7 +104,7 @@ def main(args):
     # Calculate total training steps
     total_step = len(train_dataloader) * args.num_train_epochs
 
-    # Strat training
+    # Start training
     for epoch in range(args.num_train_epochs):
         for step, batch in enumerate(train_dataloader, start=1):
             #breakpoint()
