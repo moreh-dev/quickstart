@@ -30,7 +30,7 @@ def parse_args():
         help="model name or path",
     )
     parser.add_argument(
-        "--num-train-epochs", 
+        "--epochs", 
         type=int, 
         default=1, 
         help="num training epochs"
@@ -46,6 +46,12 @@ def parse_args():
         type=int, 
         default=2048, 
         help="max input token length"
+    )
+    parser.add_argument(
+        "--dataset-name-or-path", 
+        type=str, 
+        default="./cnn_dailymail.pt", 
+        help="dataset name or path"
     )
     parser.add_argument(
         "--lr", 
@@ -88,7 +94,7 @@ def main(args):
     model.train()
 
     # Load dataset
-    dataset = torch.load("./cnn_dailymail.pt")
+    dataset = torch.load(args.dataset_name_or_path)
 
     # Create a DataLoader for the training set
     train_dataloader = torch.utils.data.DataLoader(
@@ -102,10 +108,10 @@ def main(args):
     optim = AdamW(model.parameters(), lr=args.lr)
 
     # Calculate total training steps
-    total_step = len(train_dataloader) * args.num_train_epochs
+    total_step = len(train_dataloader) * args.epochs
 
     # Start training
-    for epoch in range(args.num_train_epochs):
+    for epoch in range(args.epochs):
         for step, batch in enumerate(train_dataloader, start=1):
             #breakpoint()
             start_time = time.perf_counter()
@@ -131,8 +137,6 @@ def main(args):
     
     print("Training Done")
     print("Saving Model...")
-    # Save trained model
-    #model = model.to("cpu")
     model.save_pretrained(args.save_model_dir)
     print(f"Model saved in {args.save_model_dir}")
 

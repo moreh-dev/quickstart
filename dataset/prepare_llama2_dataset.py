@@ -42,7 +42,7 @@ def main():
     dataset = dataset.map(preprocess)
 
     print("Saving datset into torch format...")
-    torch.save(dataset, './cnn_dailymail.pt')
+    torch.save(dataset, "./cnn_dailymail.pt")
     print("Dataset saved as ./cnn_dailymail.pt")
 
         
