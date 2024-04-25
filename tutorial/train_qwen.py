@@ -72,7 +72,7 @@ def parse_args():
 
 def main(args):
 
-    # Load model and tokenizer
+    # Load model
     model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path)
 
     # Apply Advanced Parallelization
