@@ -172,3 +172,9 @@ cython_debug/
 *.safetensors
 *.json
 *.model
+
+# Logs
+*.log
+
+# swp
+*.swp
