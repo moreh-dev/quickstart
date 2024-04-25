@@ -30,7 +30,7 @@ def parse_args():
         "--save-path",
         type=str,
         default="./mistral_dataset.pt",
-        help="dataset save directory",
+        help="dataset save path",
     )
 
     return parser.parse_args()
