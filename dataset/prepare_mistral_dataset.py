@@ -2,21 +2,51 @@ import copy
 import torch
 
 from datasets import load_dataset
+from argparse import ArgumentParser
 from transformers import AutoTokenizer
 
 
-def main():
+def parse_args():
+    parser = ArgumentParser()
+    parser.add_argument(
+        "--model-name-or-path",
+        type=str,
+        default="./mistral-7b",
+        help="model name or path",
+    )
+    parser.add_argument(
+        "--dataset-name-or-path",
+        type=str,
+        default="iamtarun/python_code_instructions_18k_alpaca",
+        help="dataset name or path",
+    )
+    parser.add_argument(
+        "--block-size",
+        type=int,
+        default=2048,
+        help="max input token length",
+    )
+    parser.add_argument(
+        "--save-path",
+        type=str,
+        default="./mistral_dataset.pt",
+        help="dataset save directory",
+    )
+
+    return parser.parse_args()
+
+def main(args):
 
     # Load tokenizer
-    print("Loading Tokenizer...")
-    tokenizer = AutoTokenizer.from_pretrained("mistralai/Mistral-7B-v0.1")
+    print(f"Loading {args.model_name_or_path} Tokenizer...")
+    tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path)
 
     # Use eos token id as pad token id
     tokenizer.pad_token_id = tokenizer.eos_token_id
 
-    print("Downloading dataset...")
+    print(f"Downloading {args.dataset_name_or_path} dataset...")
     # Load dataset and set its format to PyTorch tensors
-    dataset = load_dataset("iamtarun/python_code_instructions_18k_alpaca").with_format("torch")
+    dataset = load_dataset(args.dataset_name_or_path).with_format("torch")
 
     # Construct a formatted prompt
     def create_prompt(prompt):
@@ -29,7 +59,7 @@ def main():
             create_prompt(prompt),
             padding="max_length",
             truncation=True,
-            max_length=2048,
+            max_length=args.block_size,
         )
 
         return {
@@ -42,9 +72,10 @@ def main():
     dataset = dataset.map(preprocess)
 
     print("Saving datset into torch format...")
-    torch.save(dataset, 'python_code_instructions_18k_alpaca.pt')
-    print("Dataset saved as ./python_code_instructions_18k_alpaca.pt")
+    torch.save(dataset, args.save_path)
+    print(f"Dataset saved as {args.save_path}")
 
         
 if __name__ == "__main__":
-    main()
+    args = parse_args()
+    main(args)
