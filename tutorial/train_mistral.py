@@ -61,7 +61,7 @@ def parse_args():
     parser.add_argument(
         "--dataset-name-or-path",
         type=str,
-        default="./python_code_instructions_18k_alpaca.pt",
+        default="./mistral_dataset.pt",
         help="dataset name or path",
     )
 

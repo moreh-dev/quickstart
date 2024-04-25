@@ -50,7 +50,7 @@ def parse_args():
     parser.add_argument(
         "--dataset-name-or-path", 
         type=str, 
-        default="./cnn_dailymail.pt", 
+        default="./llama2_dataset.pt", 
         help="dataset name or path"
     )
     parser.add_argument(
