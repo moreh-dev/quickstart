@@ -29,8 +29,8 @@ def process_all_files_in_folder(directory):
         # Construct the full file path
         file_path = os.path.join(directory, filename)
 
-        if file_path == 'logs/moreh-smi-data.logs': continue
-        
+        if 'moreh-smi-data.log' in file_path: continue
+
         if os.path.isfile(file_path):
             lines = process_file(file_path)
             max_throughput = parse_throughput(lines)
