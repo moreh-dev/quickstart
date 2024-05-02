@@ -5,7 +5,7 @@ import torch
 from loguru import logger
 from datasets import load_dataset
 from argparse import ArgumentParser
-from transformers import AdamW, LlamaForCausalLM, LlamaTokenizer
+from transformers import AdamW, AutoModelForCausalLM, AutoTokenizer
 
 
 # Compose pad token mask
@@ -80,8 +80,8 @@ def parse_args():
 def main(args):
     
     # Load base model and tokenizer
-    tokenizer = LlamaTokenizer.from_pretrained(args.model_name_or_path)
-    model = LlamaForCausalLM.from_pretrained(args.model_name_or_path)
+    tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path)
+    model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path)
 
     # Apply Advanced Parallelization
     torch.moreh.option.enable_advanced_parallelization()
@@ -138,6 +138,7 @@ def main(args):
     print("Training Done")
     print("Saving Model...")
     model.save_pretrained(args.save_model_dir)
+    tokenizer.save_pretrained(args.save_model_dir)
     print(f"Model saved in {args.save_model_dir}")
 
 if __name__ == "__main__":
