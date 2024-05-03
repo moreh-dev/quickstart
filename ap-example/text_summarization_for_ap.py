@@ -31,7 +31,7 @@ def parse_args():
     parser.add_argument(
         "--model-name-or-path",
         type=str,
-        default="./llama-2-13b-hf"
+        default="./llama-2-13b-hf",
         help="model name or path",
     )
     parser.add_argument(
@@ -50,25 +50,25 @@ def parse_args():
         "--block-size", 
         type=int, 
         default=1024, 
-        help="max input token length"
+        help="max input token length",
     )
     parser.add_argument(
         "--lr", 
         type=float, 
         default=0.00001, 
-        help="learning rate"
+        help="learning rate",
     )
     parser.add_argument(
         "--log-interval", 
         type=int, 
         default=2, 
-        help="log interval"
+        help="log interval",
     )
     parser.add_argument(
         "--save-model-dir", 
         type=str, 
         default="./outputs", 
-        help="path to save model"
+        help="path to save model",
     )
     args = parser.parse_args()
 
