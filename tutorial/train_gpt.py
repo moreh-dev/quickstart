@@ -62,26 +62,30 @@ def train(args):
             input_ids = batch["input_ids"]
             attn_mask = batch["attention_mask"]
             labels = mask_pads(input_ids, attn_mask)
+            
             outputs = model(
                 input_ids.cuda(),
                 attention_mask=attn_mask.cuda(),
                 labels=labels.cuda(),
                 use_cache=False,
             )
-
             loss = outputs[0]
+            # breakpoint()
             loss.backward()
 
             optim.step()
             model.zero_grad(set_to_none=True)
             end = time.time()
+            
             if i % args.log_interval == 0:
                 loss_scalar = loss.item()
                 logger.info(f"[Step {i+(epoch*len(train_dataloader))}/{total_step}] Loss: {loss_scalar} Throughput: {token_per_iter/(end-start):.2f} tokens/sec" )
                 with open("gpt_log", "a") as f:
                     f.write(f"{i+epoch*len(train_dataloader)},{loss_scalar}\n")
+            else:
+                logger.info(f"[Step {i+(epoch*len(train_dataloader))}/{total_step}] Throughput: {token_per_iter/(end-start):.2f} tokens/sec" )
         print("Saving Model...")
-        model.save_pretrained(args.model_save_path)
+        #model.save_pretrained(args.model_save_path)
 
 
     # Save trained model
@@ -93,11 +97,11 @@ def train(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type = str, default = "cerebras/Cerebras-GPT-13B")
-    parser.add_argument("--batch-size", type = int, default = 64)
+    parser.add_argument("--batch-size", type = int, default = 32)
     parser.add_argument("--block-size", type = int, default = 2048)
     parser.add_argument("--lr", type=float, default=0.00001)
     parser.add_argument("--epochs", type=int, default=4)
-    parser.add_argument("--dataset", type =str, default="./gpt_dataset.pt")
+    parser.add_argument("--dataset", type =str, default="./gpt_dataset_2048.pt")
     parser.add_argument("--model-save-path", type =str, default="./gpt_checkpoint")
     parser.add_argument("--log-interval", type =int, default=10)
     args = parser.parse_args()
