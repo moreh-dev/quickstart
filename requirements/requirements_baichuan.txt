@@ -1,0 +1,7 @@
+transformers==4.33.1
+accelerate==0.29.1
+datasets==2.14.5
+loguru==0.5.3
+pyparsing==3.1.2
+sentencepiece==0.2.0
+
