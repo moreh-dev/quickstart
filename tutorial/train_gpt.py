@@ -101,7 +101,7 @@ if __name__ == "__main__":
     parser.add_argument("--block-size", type = int, default = 2048)
     parser.add_argument("--lr", type=float, default=0.00001)
     parser.add_argument("--epochs", type=int, default=4)
-    parser.add_argument("--dataset", type =str, default="./gpt_dataset_2048.pt")
+    parser.add_argument("--dataset", type =str, default="./gpt_dataset.pt")
     parser.add_argument("--model-save-path", type =str, default="./gpt_checkpoint")
     parser.add_argument("--log-interval", type =int, default=10)
     args = parser.parse_args()
