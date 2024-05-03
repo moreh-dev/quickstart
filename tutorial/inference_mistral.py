@@ -1,13 +1,11 @@
 import torch
 import sys, os
-sys.path.append(os.path.join(os.path.dirname(sys.path[0]), 'model'))
 
-from transformers import AutoTokenizer
-from modeling_mistral import MistralForCausalLM
+from transformers import AutoTokenizer, AutoModelForCausalLM
 
 
 # Saved model path
-CHECKPOINT = "./code_generation"
+CHECKPOINT = "./mistral_code_generation"
 
 # Model name for tokenizer
 MODEL_NAME = "mistralai/Mistral-7B-v0.1"
@@ -16,13 +14,13 @@ MODEL_NAME = "mistralai/Mistral-7B-v0.1"
 MAX_NEW_TOKENS = 512
 
 # Load trained model
-model = MistralForCausalLM.from_pretrained(CHECKPOINT)
+model = AutoModelForCausalLM.from_pretrained(CHECKPOINT)
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 model.cuda()
 model.eval()
 
 # Prepare test prompt
-input_text = f"[INST] Write a function to sort a given matrix in ascending order according to the sum of its rows. [/INST]"
+input_text = f"Below is an instruction that describes a task. Write a response that appropriately completes the request.\n\n### Instruction:\nCreate a function to join given list of strings with space.\n\n### Input:\n['I', 'love', 'you']\n\n### Output:\n"
 input_ids = tokenizer(input_text, return_tensors="pt").input_ids
 generated_text_ids = input_ids.cuda()
 

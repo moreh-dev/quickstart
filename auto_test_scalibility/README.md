@@ -1,9 +1,15 @@
 # Usage
 ## 0. Setup
 현재는 파일간의 경로를 간이로 설정해둬서 해당 폴더 내의 파일을 모두 ~/quickstart 로 이동시켜주세요.
+아래와 같이 로그 경로를 생성해주세요
+```
+mkdir logs
+```
 
 ## 1. Write config file
-`config.txt` 에 테스트하실 모델명과 argument 조합을 선언해주세요.
+`config.txt` 에 테스트하실 모델명과 argument 조합을 선언해주세요.  
+주의 사항으로 리스트 element 사이에 , 를 넣으시면 안됩니다.
+
 example
 
 ```

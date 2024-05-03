@@ -9,11 +9,13 @@ def process_lines_containing_python(input_filename):
     # Open the input file for reading
     with open(input_filename, 'r') as file:
         # Read through each line in the input file
+        tmp_sda_line = '-1|-1|-1|-1|-1|-1|-1'
         for line in file:
             # Check if 'python' is in the line
             if 'xlarge' in line.lower():
-                sda_lines.append(line.strip())
+                tmp_sda_line = line.strip()
             if 'python' in line.lower():  # This makes the search case-insensitive
+                sda_lines.append(tmp_sda_line)
                 relevant_lines.append(line.strip())
     return sda_lines, relevant_lines
 
@@ -24,10 +26,12 @@ def export_info(sda_lines, relevant_lines):
         tmp_s = s.split('|')
         sda_model = tmp_s[3]
         tmp_l = l.split('|')
-        batch_size = tmp_l[4].split(' ')[7]
+        ops = tmp_l[4].split(' ')
+        batch_size = ops[7]
+        block_size = ops[9]
         mem_usage = int(tmp_l[5].replace('MiB', ''))
 
-        distinct_name = f"{sda_model}_{batch_size}"
+        distinct_name = f"{sda_model}_{batch_size}_{block_size}"
         if distinct_name not in datas:
             datas[distinct_name] = mem_usage
         elif datas[distinct_name] < mem_usage:

@@ -3,12 +3,15 @@ import re
 
 def parse_throughput(lines):
     tps = 0
+    tps_list = []
     for l in lines:
         match = re.search(r'Throughput\s*:\s*(\d+)', l)
         if match:
-            if tps < int(match.group(1)):
-                tps = int(match.group(1))
-    return tps
+            tps_list.append(int(match.group(1)))
+    if len(tps_list) == 0 : return 0
+    tps_list.remove(max(tps_list))
+    tps_list.remove(min(tps_list))
+    return round(sum(tps_list)/len(tps_list), 2)
 
 
 def process_file(file_path):
@@ -26,8 +29,8 @@ def process_all_files_in_folder(directory):
         # Construct the full file path
         file_path = os.path.join(directory, filename)
 
-        if file_path == 'logs/moreh-smi-data.logs': continue
-        
+        if 'moreh-smi-data.log' in file_path: continue
+
         if os.path.isfile(file_path):
             lines = process_file(file_path)
             max_throughput = parse_throughput(lines)

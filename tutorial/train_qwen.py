@@ -1,10 +1,8 @@
 import copy
 import time
 import torch
-import matplotlib.pyplot as plt
 
 from loguru import logger
-from datasets import load_dataset
 from argparse import ArgumentParser
 
 from transformers import AdamW, AutoTokenizer, AutoModelForCausalLM
@@ -29,18 +27,6 @@ def parse_args():
         type=int,
         default=256,
         help="train batch size",
-    )
-    parser.add_argument(
-        "--accum-step",
-        type=int,
-        default=1,
-        help="grad accum step",
-    )
-    parser.add_argument(
-        "--warmup-step",
-        type=int,
-        default=50,
-        help="warm up step",
     )
     parser.add_argument(
         "--block-size",
@@ -78,11 +64,6 @@ def parse_args():
         default="./qwen_dataset.pt",
         help="dataset name or path",
     )
-    parser.add_argument(
-        "--save-bf-model",
-        action="store_true",
-        help="whether to save bfloat model",
-    )
 
     args = parser.parse_args()
 
@@ -91,7 +72,7 @@ def parse_args():
 
 def main(args):
 
-    # Load model and tokenizer
+    # Load model
     model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path)
 
     # Apply Advanced Parallelization
@@ -113,7 +94,7 @@ def main(args):
     )
     
     # Mask pad tokens for training
-    def mask_pads(input_ids, attention_mask, ignore_index = -100):
+    def mask_pads(input_ids, attention_mask, ignore_index=args.ignore_index):
         idx_mask = attention_mask
         labels = copy.deepcopy(input_ids)
         labels[~idx_mask.bool()] = ignore_index
@@ -126,11 +107,9 @@ def main(args):
     total_step = len(train_dataloader) * args.epochs
     print(f"total_step: {total_step}")
 
-    loss_values = []
-
     # Start training
     for epoch in range(args.epochs):
-        for i, batch in enumerate(train_dataloader, 1):
+        for i, batch in enumerate(train_dataloader, start=1):
             start_time = time.perf_counter()
             input_ids = batch["input_ids"]
             attn_mask = batch["attention_mask"]
@@ -149,7 +128,6 @@ def main(args):
 
             duration = time.perf_counter() - start_time
             throughput = (args.batch_size * args.block_size) / duration
-            loss_values.append(loss.item())
             if i % args.log_interval == 0:
                 logger.info(f"[Step {i+(epoch*len(train_dataloader))}/{total_step}] | Loss: {loss.item()} | Duration: {duration:.2f} | Throughput: {throughput:.2f} tokens/sec")
 

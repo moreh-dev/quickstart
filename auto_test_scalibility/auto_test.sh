@@ -13,7 +13,7 @@ PYTHON_SCRIPT="yiko_train.py"
 sda="4"
 input_batch_size=1024
 input_block_size=1024
-
+input_log_path="logs"
 function change_sda() {
     {
         sleep 0.5
@@ -31,7 +31,7 @@ function show_help() {
 
 function run_python() {
     echo "batch size : $input_batch_size, log path : logs/${model_name}_${sda}_batch${input_batch_size}_block${input_block_size}.log"
-    python $PYTHON_SCRIPT --epochs 1 --batch-size $input_batch_size --block-size $input_block_size > "logs/${model_name}_${sda}_batch${input_batch_size}_block${input_block_size}.log" 2>&1
+    python $PYTHON_SCRIPT --epochs 1 --batch-size $input_batch_size --block-size $input_block_size > "${input_log_path}/${model_name}_${sda}_batch${input_batch_size}_block${input_block_size}.log" 2>&1
 }
 
 
@@ -42,7 +42,8 @@ fi
 
 CONFIG_FILE=$1
 model_name=$(grep 'model_name' $CONFIG_FILE | awk -F'=' '{print $2}' | tr -d ' "')
-
+model_path=$(grep 'model_path' $CONFIG_FILE | awk -F'=' '{print $2}' | tr -d ' "')
+log_path=$(grep 'log_path' $CONFIG_FILE | awk -F'=' '{print $2}' | tr -d ' "')
 # Print the model name
 echo "Model Name: $model_name"
 
@@ -52,7 +53,19 @@ model_arguments=$(awk '/model_arguments = \[/{flag=1; next} /\]/{flag=0} flag' $
 echo "Model Arguments:"
 echo "$model_arguments"
 
-if [ "${model_name}" == "baichuan" ]; then
+
+if [[ -n "$log_path" && -e "$log_path" ]]; then
+    input_log_path=$log_path
+elif [[ -n "$log_path" ]]; then
+    echo "log_path is exist, but not invalid"
+    exit 1
+fi
+
+
+
+if [[ -n "$model_path" && -e "$model_path" ]]; then
+    PYTHON_SCRIPT=$model_path
+elif [ "${model_name}" == "baichuan" ]; then
     PYTHON_SCRIPT="tutorial/train_baichuan2_13b.py"
     echo "python_script file is $PYTHON_SCRIPT"
 elif [ "${model_name}" == "yiko" ]; then
@@ -64,10 +77,19 @@ elif [ "${model_name}" == "mistral" ]; then
 elif [ "${model_name}" == "gpt" ]; then
     PYTHON_SCRIPT="tutorial/train_gpt.py"
     echo "python_script file is $PYTHON_SCRIPT"
+elif [ "${model_name}" == "llama" ]; then
+    PYTHON_SCRIPT="tutorial/train_llama2.py"
+    echo "python_script file is $PYTHON_SCRIPT"
+elif [ "${model_name}" == "qwen" ]; then
+    PYTHON_SCRIPT="tutorial/train_qwen.py"
+    echo "python_script file is $PYTHON_SCRIPT"
 else
     echo "There's no python script file ${model_name}"
     exit 1
 fi
+
+
+
 
 # Do while, run python
 echo "$model_arguments" | while IFS= read -r line; do
@@ -88,28 +110,3 @@ echo "$model_arguments" | while IFS= read -r line; do
 done
 
 
-'''
-MODEL=$1
-BATCHSIZE=$2
-
-BATCH_SIZES=($BATCHSIZE $((BATCHSIZE * 2)) $((BATCHSIZE * 4)))
-
-
-# Proper array expansion in the loop
-
-for sda_num in 1 2 3
-do
-    change_sda
-    sda=$((sda + 2))
-    sleep .5
-    echo "sda number is $sda"
-    for b in "${BATCH_SIZES[@]}"
-    do
-        input_batch_size=$b
-        run_python
-        sleep 10
-        moreh-smi -r
-    done
-    sleep 10
-done
-'''

@@ -1,101 +1,115 @@
 import copy
+import time
 import torch
-import sys, os
-sys.path.append(os.path.join(os.path.dirname(sys.path[0]), 'model'))
 
 from loguru import logger
-from datasets import load_dataset
+from argparse import ArgumentParser
 
 from transformers import AdamW, AutoTokenizer, AutoModelForCausalLM
 
 
-# Model Name
-MODEL_NAME = "mistralai/Mistral-7B-v0.1"
+def parse_args():
+    parser = ArgumentParser()
+    parser.add_argument(
+        "--model-name-or-path",
+        type=str,
+        default="./mistral-7b",
+        help="Hugging Face Model",
+    )
+    parser.add_argument(
+        "--epochs",
+        type=int,
+        default=2,
+        help="Epochs",
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=256,
+        help="train batch size",
+    )
+    parser.add_argument(
+        "--block-size",
+        type=int,
+        default=2048,
+        help="max input token length",
+    )
+    parser.add_argument(
+        "--lr",
+        type=float,
+        default=2e-6,
+        help="learning rate",
+    )
+    parser.add_argument(
+        "--log-interval",
+        type=int,
+        default=1,
+        help="log interval",
+    )
+    parser.add_argument(
+        "--ignore-index",
+        type=int,
+        default=-100,
+        help="pad token ignore idx",
+    )
+    parser.add_argument(
+        "--save-dir",
+        type=str,
+        default="./mistral_code_generation",
+        help="model save dir",
+    )
+    parser.add_argument(
+        "--dataset-name-or-path",
+        type=str,
+        default="./mistral_dataset.pt",
+        help="dataset name or path",
+    )
 
-# Batch Size
-BATCH_SIZE = 16
+    args = parser.parse_args()
 
-# Train Epoch
-EPOCH = 3
-
-# Max Input Token Length
-MAX_LENGTH = 2048
-
-# Learning Rate
-LR = 0.00001
-
-# Log Interval
-LOG_INTERVAL = 1
-
-# Path to Save Model
-SAVE_MODEL_DIR = "./code_generation"
+    return args
 
 
-def main():
+def main(args):
+
+    # Load model and tokenizer
+    model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path)
 
     # Apply Advanced Parallelization
     torch.moreh.option.enable_advanced_parallelization()
 
-    # Load base model and tokenizer
-    model = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    
     # Prepare the model for training on Accelerator
-    model.cuda()
     model.train()
-
-    # Use unknown token id as pad token id
-    tokenizer.pad_token_id = tokenizer.unk_token_id
-
-    # Load MBPP dataset and set its format to PyTorch tensors
-    dataset = load_dataset("mbpp").with_format("torch")
-
-    # Construct a formatted prompt
-    def create_prompt(prompt):
-        full_prompt = f"[INST] {prompt['text']} [/INST]\n{prompt['code']}</s>"
-        return full_prompt
-
-    # Tokenize and prepare the input prompt
-    def preprocess(prompt):
-        tokenized = tokenizer(
-            create_prompt(prompt),
-            padding="max_length",
-            truncation=True,
-            max_length=MAX_LENGTH,
-        )
-
-        return {
-            "input_ids": tokenized["input_ids"], 
-            "attention_mask": tokenized["attention_mask"],
-        }
+    model.cuda()
 
     # Apply preprocess function
-    dataset = dataset.map(preprocess)
+    dataset = torch.load(args.dataset_name_or_path)
 
     # Create a DataLoader for the training set
     train_dataloader = torch.utils.data.DataLoader(
         dataset["train"],
-        batch_size=BATCH_SIZE,
+        batch_size=args.batch_size,
         shuffle=True,
         drop_last=True,
     )
     
     # Mask pad tokens for training
-    def mask_pads(input_ids, attention_mask, ignore_index = -100):
+    def mask_pads(input_ids, attention_mask, ignore_index=args.ignore_index):
         idx_mask = attention_mask
         labels = copy.deepcopy(input_ids)
         labels[~idx_mask.bool()] = ignore_index
         return labels
 
     # Define AdamW optimizer
-    optim = AdamW(model.parameters(), lr=LR)
+    optim = AdamW(model.parameters(), lr=args.lr)
 
     # Calculate total training steps
-    total_step = len(train_dataloader) * EPOCH
+    total_step = len(train_dataloader) * args.epochs
 
     # Start training
-    for epoch in range(EPOCH):
+    for epoch in range(args.epochs):
         for i, batch in enumerate(train_dataloader, 1):
+            start_time = time.perf_counter()
             input_ids = batch["input_ids"]
             attn_mask = batch["attention_mask"]
             labels = mask_pads(input_ids, attn_mask)
@@ -110,23 +124,18 @@ def main():
 
             optim.step()
             model.zero_grad(set_to_none=True)
-            if i % LOG_INTERVAL == 0:
-                logger.info(f"[Step {i+(epoch*len(train_dataloader))}/{total_step}] Loss: {loss.item()}")
+
+            duration = time.perf_counter() - start_time
+            throughput = (args.batch_size * args.block_size) / duration
+            if i % args.log_interval == 0:
+                logger.info(f"[Step {i+(epoch*len(train_dataloader))}/{total_step}] | Loss: {loss.item()} | Duration: {duration:.2f} | Throughput: {throughput:.2f} tokens/sec")
 
     # Save trained model
     print("Training Done")
     print("Saving Model...")
-    model.save_pretrained(SAVE_MODEL_DIR)
-    print(f"Model saved in {SAVE_MODEL_DIR}")
+    model.save_pretrained(args.save_dir)
+    print(f"Model saved in {args.save_dir}")
 
-    #test_text = "[INST] Write a python function to find the volume of a triangular prism. [/INST]"
-    #test_ids = tokenizer(test_text, return_tensors="pt").input_ids
-    #model.eval()
-    #ouptuts = model.generate(test_ids, max_new_tokens=1024)
-    #decoded_outputs = tokenizer.decode(outputs[0], skip_special_tokens=True, clean_up_tokenization_spaces=True)
-    #
-    #print(f"Test Input:\n{test_text}\n\n")
-    #print(f"Decoded Model Ouput:\n{decoded_outputs}")
-    
 if __name__ == "__main__":
-    main()
+    args = parse_args()
+    main(args)

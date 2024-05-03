@@ -31,6 +31,7 @@ def parse_args():
     parser.add_argument(
         "--model-name-or-path",
         type=str,
+        default="./llama-2-13b-hf"
         help="model name or path",
     )
     parser.add_argument(
@@ -128,7 +129,7 @@ def main(args):
     # Calculate total training steps
     total_step = len(train_dataloader) * args.num_train_epochs
 
-    # Strat training
+    # Start training
     for epoch in range(args.num_train_epochs):
         for step, batch in enumerate(train_dataloader, start=1):
             input_ids = batch["input_ids"]
