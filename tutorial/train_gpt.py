@@ -82,8 +82,6 @@ def train(args):
                 logger.info(f"[Step {i+(epoch*len(train_dataloader))}/{total_step}] Loss: {loss_scalar} Throughput: {token_per_iter/(end-start):.2f} tokens/sec" )
                 with open("gpt_log", "a") as f:
                     f.write(f"{i+epoch*len(train_dataloader)},{loss_scalar}\n")
-            else:
-                logger.info(f"[Step {i+(epoch*len(train_dataloader))}/{total_step}] Throughput: {token_per_iter/(end-start):.2f} tokens/sec" )
         print("Saving Model...")
         #model.save_pretrained(args.model_save_path)
 
