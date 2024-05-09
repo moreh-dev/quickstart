@@ -98,7 +98,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type = str, default = "cerebras/Cerebras-GPT-13B")
     parser.add_argument("--batch-size", type = int, default = 16)
-    parser.add_argument("--block-size", type = int, default = 2048)
+    parser.add_argument("--block-size", type = int, default = 1024)
     parser.add_argument("--lr", type=float, default=0.00001)
     parser.add_argument("--epochs", type=int, default=4)
     parser.add_argument("--dataset", type =str, default="./gpt_dataset.pt")
