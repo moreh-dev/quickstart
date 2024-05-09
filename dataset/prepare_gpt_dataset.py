@@ -42,7 +42,7 @@ if __name__ == "__main__":
         "--model", type=str, default="cerebras/Cerebras-GPT-13B"
     )
     parser.add_argument(
-        "--block-size", default=2048, type=int
+        "--block-size", default=1024, type=int
     )
     parser.add_argument(
         "--save-path", type=str, default='./gpt_dataset.pt'
