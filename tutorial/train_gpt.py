@@ -83,7 +83,7 @@ def train(args):
                 with open("gpt_log", "a") as f:
                     f.write(f"{i+epoch*len(train_dataloader)},{loss_scalar}\n")
         print("Saving Model...")
-        #model.save_pretrained(args.model_save_path)
+        model.save_pretrained(args.model_save_path)
 
 
     # Save trained model
