@@ -37,7 +37,7 @@ def parse_args():
     parser.add_argument(
         "--batch-size", 
         type=int, 
-        default=32, 
+        default=256, 
         help="train bacth size"
     )
     parser.add_argument(
@@ -67,7 +67,7 @@ def parse_args():
     parser.add_argument(
         "--save-model-dir", 
         type=str, 
-        default="./llama2_summarization", 
+        default="./llama3_summarization", 
         help="path to save model"
     )
     args = parser.parse_args()
