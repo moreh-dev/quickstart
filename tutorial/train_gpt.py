@@ -1,5 +1,4 @@
 
-import os 
 import time
 import copy
 import argparse
@@ -7,9 +6,6 @@ import argparse
 from loguru import logger
 from transformers import AutoModelForCausalLM, AdamW, AutoTokenizer
 import torch
-import transformers
-from model.modeling_gpt import GPTModel
-
 
 
 def train(args):
@@ -27,7 +23,6 @@ def train(args):
     # Use unknown token id as pad token id
     tokenizer.pad_token_id = tokenizer.unk_token_id
 
-    # Load MBPP dataset and set its format to PyTorch tensors
     dataset = torch.load(args.dataset)
 
     # Create a DataLoader for the training set
@@ -51,8 +46,6 @@ def train(args):
 
     # Calculate total training steps
     total_step = len(train_dataloader) * args.epochs
-    with open("gpt_log.log", "w") as f:
-        f.write("step,loss\n")
 
     # Start training
     for epoch in range(args.epochs):
@@ -70,7 +63,6 @@ def train(args):
                 use_cache=False,
             )
             loss = outputs[0]
-            # breakpoint()
             loss.backward()
 
             optim.step()
@@ -80,9 +72,6 @@ def train(args):
             if i % args.log_interval == 0:
                 loss_scalar = loss.item()
                 logger.info(f"[Step {i+(epoch*len(train_dataloader))}/{total_step}] Loss: {loss_scalar} Throughput: {token_per_iter/(end-start):.2f} tokens/sec" )
-                with open("gpt_log", "a") as f:
-                    f.write(f"{i+epoch*len(train_dataloader)},{loss_scalar}\n")
-
 
     # Save trained model
     print("Training Done")
