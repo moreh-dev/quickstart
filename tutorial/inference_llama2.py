@@ -1,24 +1,40 @@
 import torch
 import sys, os
 
+from argparse import ArgumentParser
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
 
-# Load trained model
-model = AutoModelForCausalLM.from_pretrained("./llama2_summarization")
-tokenizer = AutoTokenizer.from_pretrained("./llama-2-13b-hf")
-model.eval()
-model.cuda()
+def parse_args():
+    parser = ArgumentParser()
+    parser.add_argument(
+        "--model-name-or-path",
+        type=str,
+        default="./llama2_summarization"
+    )
+    return parser.parse_args()
 
-# Prepare test prompt
-input_text = """[SUMMARIZE] (CNN) -- A Marine convicted for his role in the death of an Iraqi civilian was sentenced Friday to a reduction in rank and will be discharged. Cpl. Trent D. Thomas was found guilty Wednesday of kidnapping and conspiracy to commit several offenses -- including murder, larceny, housebreaking, kidnapping, and making false official statements -- for his involvement in the April 2006 death in Hamdaniya, Iraq. Thomas will be demoted to the rank of entry-level private and will receive a bad-conduct discharge. The 25-year-old was among seven Marines and a Navy medic who were charged in connection with the death of Hashim Ibrahim Awad, 52. The Marines accused in the case were members of Kilo Company, 3rd Battalion, 5th Marine Regiment. They reported at the time that Awad planned to detonate a roadside bomb targeting their patrol. But several residents of Hamdaniya, including relatives of the victim, gave a different account, prompting a criminal investigation. Prosecutors accuse the group's squad leader, Sgt. Lawrence G. Hutchins III, of dragging Awad from his home, shooting him in the street and then making it look like he had planned to ambush American troops. Hutchins has pleaded not guilty to murder, conspiracy and other charges in the case. He faces a sentence of life in prison if convicted. Thomas changed his plea from guilty to not guilty in February, arguing that he had merely followed orders. He told his attorneys that after reviewing the evidence against him, he realized "that what happened overseas happened as a result of obedience to orders, and he hasn't done anything wrong," defense attorney Victor Kelley said. Thomas said in January, shortly after entering his guilty plea, that he was "truly sorry" for his role in the killing. He could have been sentenced to life in prison under his original plea. E-mail to a friend . [/SUMMAIRZE]"""
-input_ids = tokenizer(input_text, return_tensors="pt").input_ids
-generated_text_ids = input_ids.to("cuda")
+def main(args):
+    # Load trained model
+    model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path)
+    tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path)
+    model.eval()
+    model.cuda()
 
-with torch.no_grad():
-    # Generate python function
-    output = model.generate(generated_text_ids, max_new_tokens=512)
+    # Prepare test prompt
+    input_text = """[SUMMARIZE] (CNN)Arsenal kept their slim hopes of winning this season's English Premier League title alive by beating relegation threatened Burnley 1-0 at Turf Moor. A first half goal from Welsh international Aaron Ramsey was enough to separate the two sides and secure Arsenal's hold on second place. More importantly it took the north London club to within four points of first placed Chelsea, with the two clubs to play next week. But Chelsea have two games in hand and play lowly Queens Park Rangers on Sunday, a team who are themselves struggling against relegation. Good form . Arsenal have been in superb form since the start of the year, transforming what looked to be another mediocre season struggling to secure fourth place -- and with it Champions League qualification -- into one where they at least have a shot at winning the title. After going ahead, Arsenal rarely looked in any danger of conceding, showing more of the midfield pragmatism epitomized by the likes of Francis Coquelin, who also played a crucial role in the goal. "He has been absolutely consistent in the quality of his defensive work," Arsenal coach Arsene Wenger told Sky Sports after the game when asked about Coquelin's contribution to Arsenal's current run. They have won eight games in a row since introducing the previously overlooked young Frenchman into a more defensive midfield position. "He was a player who was with us for seven years, from 17, he's now just 24," Wenger explained. "Sometimes you have to be patient. I am very happy for him because he has shown great mental strength." Now all eyes will be on next week's clash between Arsenal and Chelsea which will likely decide the title. "They have the games in hand," said Wenger, playing down his club's title aspirations. "But we'll keep going and that's why the win was so important for us today." Relegation dogfight . Meanwhile it was a good day for teams at the bottom of the league. Aston Villa continued their good form since appointing coach Tim Sherwood with a 1-0 victory over Tottenham, who fired Sherwood last season. Belgian international Christian Benteke scored the only goal of the game, his eighth in six matches, to secure a vital three points to give the Midlands club breathing space. Another Midlands club looking over their shoulder is West Brom, who conceded an injury time goal to lose 3-2 against bottom club Leicester City. But it was an awful day for Sunderland's former Dutch international coach Dick Advocaat, who saw his team lose 4-1 at home against form team Crystal Palace. Democratic Republic of Congo international Yannick Bolasie scored Crystal Palace's first ever hat trick in the Premier League to secure an easy victory. [/SUMMAIRZE]"""
+    input_ids = tokenizer(input_text, return_tensors="pt").input_ids
+    generated_text_ids = input_ids.to("cuda")
 
-    # Decode generated tokens
-    generated_text = tokenizer.decode(output[0], skip_special_tokens=True)
-    print(f"Llama2: {generated_text}")
+    with torch.no_grad():
+        # Generate python function
+        output = model.generate(generated_text_ids, max_new_tokens=512)
+
+        # Decode generated tokens
+        generated_text = tokenizer.decode(output[0], skip_special_tokens=True)
+        print(f"Llama2: {generated_text}")
+
+
+if __name__ == "__main__":
+    args = parse_args()
+    main(args)
