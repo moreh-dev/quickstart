@@ -1,0 +1,6 @@
+ccelerate==0.29.1
+datasets==2.19.0
+loguru==0.5.3
+pyparsing==3.1.2
+transformers==4.40.2
+sentencepiece==0.2.0
