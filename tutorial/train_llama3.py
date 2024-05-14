@@ -136,6 +136,7 @@ def main(args):
     print("Training Done")
     print("Saving Model...")
     model.save_pretrained(args.save_model_dir)
+    tokenizer.save_pretrained(args.save_model_dir)
     print(f"Model saved in {args.save_model_dir}")
 
 if __name__ == "__main__":
