@@ -1,6 +1,21 @@
-model_name = "yiko"
-model_arguments = [
-batch_size = 1024, block_size = 1024, sda_num = 6
-batch_size = 1024, block_size = 2048, sda_num = 6
+Test_list = [
+{
+    model_name = "llama3",
+    script_path = "tutorial/train_llama3.py",
+    model_path = "/nas/team_cx/checkpoints/llama3-8b-base",
+    log_path = "logs",
+    model_arguments = [
+        batch_size = default, block_size = default, sda=8,
+        batch_size = 64, block_size = 1024, sda=6
+    ]
+},
+{
+    model_name = "llama2",
+    script_path = "tutorial/train_llama2.py",
+    model_path = "/nas/team_cx/checkpoints/llama2-13b-hf",
+    log_path = "logs",
+    model_arguments = [
+        batch_size = default, block_size = default, sda=8
+    ]
+}
 ]
-
