@@ -39,10 +39,16 @@ Test_list = [
 
 }
 
-## 2. Scalability test
-Tmux를 열어 `auto_test.sh` 를 실행해주세요.
+## 2. Run Auto Test Script
+`auto_test.sh` 를 ~/quickstart 위치로 복사 후 아래와 같이 실행시켜주세요.
+이때 tmux를 사용하는 것을 추천드립니다.
+
+```
+~/quickstart$ bash auto_test.sh ${config_file_path}
+```
 스크립트에 필요한 인자는 한가지 입니다.
 1. FILE_NAME : config file에 해당하는 path를 넣어주세요
+
 
 ### 주의사항
 train_${model}.py 내부에서 parser에 아래와 같은 argument를 명시해주시고, 코드내에서 입력이 될 수 있게 작성해주세요
