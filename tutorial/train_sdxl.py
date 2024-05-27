@@ -1,23 +1,26 @@
-from model.modeling_sdxl import SDXL
-from torch.optim import AdamW
-from loguru import logger
-from peft import LoraConfig
-import diffusers
+import argparse
 import time
 import torch
-import argparse
-from diffusers.optimization import get_scheduler
+import os
+
+from torch.optim import AdamW
+from loguru import logger
+from diffusers.models.lora import LoRALinearLayer
+from diffusers.pipelines.stable_diffusion_xl.pipeline_stable_diffusion_xl import (
+    StableDiffusionXLPipeline,
+)
 from torch.utils.data import DataLoader
 import datasets
-
+from diffusers.optimization import get_scheduler
 from albumentations.pytorch.transforms import ToTensorV2
 from diffusers import StableDiffusionXLPipeline
 import albumentations as A
 import numpy as np
 import copy
+from model.modeling_sdxl import SDXL
 
 
-def parse_arguments():
+def parse_args():
     parser = argparse.ArgumentParser(description="SDXL Training Script")
     parser.add_argument(
         "--model-name-or-path",
@@ -25,7 +28,8 @@ def parse_arguments():
         default="stabilityai/stable-diffusion-xl-base-1.0",
         help="Pretrained model name or path",
     )
-    parser.add_argument("--lr", type=float, default=1e-5, help="Learning rate")
+    parser.add_argument("--lr", type=float, default=1e-5, help="learning rate")
+
     parser.add_argument(
         "--lr_scheduler",
         type=str,
@@ -35,16 +39,31 @@ def parse_arguments():
             ' "constant", "constant_with_warmup"]'
         ),
     )
-    parser.add_argument("--epochs", type=int, default=5, help="Learning rate")
-    parser.add_argument("--batch-size", type=int, default=4, help="Batch size")
+    parser.add_argument("--accum-step", type=int, default=1, help="grad accum step")
     parser.add_argument(
-        "--num-workers", type=int, default=0, help="Number of data loader workers"
+        "--epochs", type=int, default=1, help="number of training epoch"
     )
-    parser.add_argument("--log-interval", type=int, default=1, help="Logging interval")
-    parser.add_argument("--dataset-name-or-path", type=str, default=None)
+    parser.add_argument("--batch-size", type=int, default=16, help="train batch size")
+    parser.add_argument(
+        "--num-workers", type=int, default=4, help="number of data loader workers"
+    )
+    parser.add_argument("--log-interval", type=int, default=1, help="logging interval")
+    parser.add_argument("--dataset-path", type=str, default="lambdalabs/naruto-blip-captions")
+    parser.add_argument("--save-dir", type=str, default="sdxl-finetuned")
+    parser.add_argument(
+        "--save-bf-model", action="store_true", help="whether to save bfloat model"
+    )
+    parser.add_argument(
+        "--unet-config",
+        type=str,
+        default=None,
+        help="unet configuration. if not specified, just use the SDXL-version UNet.",
+    )
+    parser.add_argument("--use-custom-dataset", action="store_true")
     # LoRA
     parser.add_argument("--lora", action="store_true", help="enable LoRA")
-    parser.add_argument("--rank", type=int, default=4, help="LoRA rank")
+    parser.add_argument("--rank", type=int, default=32, help="LoRA rank")
+
     return parser.parse_args()
 
 
@@ -171,63 +190,131 @@ def create_dataloader(hf_dataset, batch_size, model, num_workers):
 
 def main(args):
     torch.moreh.option.enable_advanced_parallelization()
+
+    os.makedirs(args.save_dir, exist_ok=True)
+
     model = SDXL(args.model_name_or_path).cuda()
+
     if args.lora:
-        unet_lora_config = LoraConfig(
-            r=args.rank,
-            lora_alpha=args.rank,
-            init_lora_weights="gaussian",
-            target_modules=["to_k", "to_q", "to_v", "to_out.0"],
-        )
-        model.unet.add_adapter(unet_lora_config)
-        lora_layers = filter(lambda p: p.requires_grad, model.unet.parameters())
-        optim = AdamW(lora_layers, lr=args.lr)
+        model.vae.requires_grad_(False)
+        model.text_encoder.requires_grad_(False)
+        model.text_encoder_2.requires_grad_(False)
+        model.unet.requires_grad_(False)
+
+        unet_lora_parameters = []
+        for attn_processor_name, attn_processor in model.unet.attn_processors.items():
+            attn_module = model.unet
+            for n in attn_processor_name.split(".")[:-1]:
+                attn_module = getattr(attn_module, n)
+
+            attn_module.to_q.set_lora_layer(
+                LoRALinearLayer(
+                    in_features=attn_module.to_q.in_features,
+                    out_features=attn_module.to_q.out_features,
+                    rank=args.rank,
+                )
+            )
+            attn_module.to_k.set_lora_layer(
+                LoRALinearLayer(
+                    in_features=attn_module.to_k.in_features,
+                    out_features=attn_module.to_k.out_features,
+                    rank=args.rank,
+                )
+            )
+            attn_module.to_v.set_lora_layer(
+                LoRALinearLayer(
+                    in_features=attn_module.to_v.in_features,
+                    out_features=attn_module.to_v.out_features,
+                    rank=args.rank,
+                )
+            )
+            attn_module.to_out[0].set_lora_layer(
+                LoRALinearLayer(
+                    in_features=attn_module.to_out[0].in_features,
+                    out_features=attn_module.to_out[0].out_features,
+                    rank=args.rank,
+                )
+            )
+            unet_lora_parameters.extend(attn_module.to_q.lora_layer.parameters())
+            unet_lora_parameters.extend(attn_module.to_k.lora_layer.parameters())
+            unet_lora_parameters.extend(attn_module.to_v.lora_layer.parameters())
+            unet_lora_parameters.extend(attn_module.to_out[0].lora_layer.parameters())
+
+        optim = AdamW(unet_lora_parameters, lr=args.lr, weight_decay=1e-2)
     else:
         optim = AdamW(model.parameters(), lr=args.lr)
 
+    model = model.cuda()
+
     train_data_loader = create_dataloader(
-        args.dataset_name_or_path, batch_size=args.batch_size, num_workers=args.num_workers, model=args.model_name_or_path
+        args.dataset_path,
+        batch_size=args.batch_size // args.accum_step,
+        num_workers=args.num_workers,
+        model=args.model_name_or_path,
     )
 
-    one_iter_len = len(train_data_loader)
+    total_steps = 1
+    start_time = time.perf_counter()
+    total_step_per_epoch = len(train_data_loader)
     lr_scheduler = get_scheduler(
         args.lr_scheduler,
         optimizer=optim,
         num_warmup_steps=20,
-        num_training_steps=args.epochs * one_iter_len,
+        num_training_steps=args.epochs * total_step_per_epoch,
     )
-
-    start_time = time.perf_counter()
-    for e in range(args.epochs):
+    for epoch in range(1, args.epochs + 1):
         for nbatch, batch in enumerate(train_data_loader, 1):
             input_images, text_tokens = batch
-            # amp = torch.autocast(device_type='cuda', dtype=torch.float16)
-            # with amp:
             outputs = model(
                 input_images.cuda(),
                 tokens=text_tokens.cuda(),
                 prediction_type="epsilon",
             )
 
-            loss = outputs[0]
+            loss = outputs[0] / args.accum_step
             loss.backward()
 
-            if nbatch % args.log_interval == 0:
-                loss_out = loss.item()
+            if total_steps % args.accum_step == 0:
+                optim.step()
+                optim.zero_grad(set_to_none=True)
+                lr_scheduler.step()
+
+            if total_steps % args.log_interval == 0:
+                log_loss = loss.item()
                 duration = time.perf_counter() - start_time
                 throughput = (args.batch_size * args.log_interval) / duration
                 start_time = time.perf_counter()
                 logger.info(
-                    f"[EPOCH : {e}] [STEP : {nbatch}]  Loss: {loss_out:.6f}; duration: {duration:.2f}; throughput: {throughput:.2f} imgs/sec;"
+                    f"Epoch: {epoch} | "
+                    f"Step : [{nbatch // args.accum_step}/{total_step_per_epoch // args.accum_step}] | "
+                    f"Loss: {log_loss:.6f} | "
+                    f"duration: {duration:.2f} | "
+                    f"throughput: {throughput:.2f} imgs/sec"
                 )
 
-            optim.step()
-            lr_scheduler.step()
-            optim.zero_grad()
+            total_steps += 1
 
-    model.save_pretrained("./sdxl-finetuned")
+    if (total_steps - 1) % args.log_interval != 0:
+        log_loss = loss.item()
+        duration = time.perf_counter() - start_time
+        throughput = (args.batch_size * (total_steps % args.log_interval)) / duration
+        start_time = time.perf_counter()
+        logger.info(
+            f"Epoch: {epoch} | "
+            f"Step : [{nbatch // args.accum_step}/{total_step_per_epoch // args.accum_step}] | "
+            f"Loss: {log_loss:.6f} | "
+            f"duration: {duration:.2f} | "
+            f"throughput: {throughput:.2f} imgs/sec"
+        )
+
+    if args.save_bf_model:
+        model = model.bfloat16()
+
+    logger.info(f"save model to {args.save_dir}")
+    model.save_pretrained(args.save_dir, is_lora=args.lora)
+    logger.info("model save finished")
 
 
 if __name__ == "__main__":
-    args = parse_arguments()
+    args = parse_args()
     main(args)
