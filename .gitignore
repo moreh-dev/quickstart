@@ -171,6 +171,7 @@ cython_debug/
 # Models
 *.safetensors
 *.json
+merges.txt
 
 # Notebooks
 *.ipynb
