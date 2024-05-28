@@ -15,13 +15,14 @@ from peft.utils import get_peft_model_state_dict
 VAE_DOWNSCALE_FACTOR = 8
 
 class SDXL(nn.Module):
-    def __init__(self, model, config=None, variant=None, ignore_vae = False):
+    def __init__(self, model, config=None, variant=None, ignore_vae = False, dtype = torch.float32):
         super().__init__()
-
+        self.dtype=dtype
         pipe = StableDiffusionXLPipeline.from_pretrained(model, use_safetensors=True)
+        
         self.model = model
-        self.unet = pipe.unet
-        self.vae = pipe.vae
+        self.unet = pipe.unet.to(dtype = self.dtype)
+        self.vae = pipe.vae.to(dtype = torch.float32)
         self.text_encoder = pipe.text_encoder
         self.text_encoder_2 = pipe.text_encoder_2
         self.image_processor = VaeImageProcessor(vae_scale_factor=VAE_DOWNSCALE_FACTOR)
@@ -39,10 +40,10 @@ class SDXL(nn.Module):
     def forward(self, images, tokens=None, prediction_type='epsilon', snr_gamma=5):
         # encode images and texts
         if not self.ignore_vae:
-            latents = self._encode_image(VaeImageProcessor.normalize(images))
+            latents = self._encode_image(VaeImageProcessor.normalize(images)).to(self.dtype)
         else:
             b, _, h, w = images.shape
-            latents = torch.rand((b, 4, h//VAE_DOWNSCALE_FACTOR, w//VAE_DOWNSCALE_FACTOR)).cuda()
+            latents = torch.rand((b, 4, h//VAE_DOWNSCALE_FACTOR, w//VAE_DOWNSCALE_FACTOR), dtype=self.dtype).cuda()
 
         text_embeds, pooled_text_embeds = self._encode_prompt(tokens)
         text_embeds, pooled_text_embeds = self._drop_text_emb(text_embeds), self._drop_text_emb(pooled_text_embeds)
@@ -105,7 +106,7 @@ class SDXL(nn.Module):
     @torch.no_grad()
     def _get_noise(self, x_start, scheduler):
         b = x_start.shape[0]
-        noise = torch.randn(x_start.shape).cuda()
+        noise = torch.randn(x_start.shape,dtype =self.dtype).cuda()
         timesteps = torch.randint(0, scheduler.config['num_train_timesteps'], (b, )).long().cuda()
         noisy_images = scheduler.add_noise(x_start, noise, timesteps)
         return noise, noisy_images, timesteps
@@ -130,7 +131,7 @@ class SDXL(nn.Module):
             prompt_embeds = prompt_embeds.hidden_states[-2]  # Hidden states (features) of the CLIP encoder
             prompt_embeds_list.append(prompt_embeds)
 
-        prompt_embeds = torch.concat(prompt_embeds_list, dim=-1)
+        prompt_embeds = torch.concat(prompt_embeds_list, dim=-1).to(self.dtype)
 
         bs_embed, seq_len, _ = prompt_embeds.shape
 
@@ -171,7 +172,7 @@ class SDXL(nn.Module):
                 f"Model expects an added time embedding vector of length {expected_add_embed_dim}, but a vector of {passed_add_embed_dim} was created. The model has an incorrect config. Please check `unet.config.time_embedding_type` and `text_encoder_2.config.projection_dim`."
             )
 
-        add_time_ids = torch.tensor([add_time_ids], dtype=dtype)
+        add_time_ids = torch.tensor([add_time_ids], dtype=self.dtype)
         return add_time_ids.cuda()
 
     @torch.no_grad()
@@ -191,7 +192,7 @@ class SDXL(nn.Module):
         probs = torch.ones((text_emb.shape[0])) * (1 - drop_prob)
         masks = torch.bernoulli(probs)
         while len(masks.shape) < len(text_emb.shape):
-            masks = masks.unsqueeze(-1)
+            masks = masks.unsqueeze(-1).to(self.dtype)
         return masks.cuda() * text_emb
 
     def save_pretrained(self, save_path, is_lora):

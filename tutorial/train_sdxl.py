@@ -17,7 +17,10 @@ from diffusers import StableDiffusionXLPipeline
 import albumentations as A
 import numpy as np
 import copy
-from model.modeling_sdxl import SDXL
+import sys, os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(sys.path[0]), 'model')))
+from modeling_sdxl import SDXL
 
 
 def parse_args():
@@ -189,7 +192,17 @@ def create_dataloader(hf_dataset, batch_size, model, num_workers):
 
 
 def main(args):
-    torch.moreh.option.enable_advanced_parallelization()
+
+    try:
+        from moreh.driver.common.config import set_backend_config
+        set_backend_config('miopen_mode', 3)
+        torch.moreh.option.enable_advanced_parallelization()
+        is_moreh = True
+    except:
+        from accelerate import Accelerator
+        accelerator = Accelerator(mixed_precision='bf16')
+        is_moreh = False
+
 
     os.makedirs(args.save_dir, exist_ok=True)
 
@@ -255,6 +268,9 @@ def main(args):
 
     total_steps = 1
     start_time = time.perf_counter()
+
+    if not is_moreh:
+        model, optim, train_data_loader = accelerator.prepare(model, optim, train_data_loader)
     total_step_per_epoch = len(train_data_loader)
     lr_scheduler = get_scheduler(
         args.lr_scheduler,
@@ -272,7 +288,10 @@ def main(args):
             )
 
             loss = outputs[0] / args.accum_step
-            loss.backward()
+            if is_moreh:
+                loss.backward()
+            else:
+                accelerator.backward(loss)
 
             if total_steps % args.accum_step == 0:
                 optim.step()
