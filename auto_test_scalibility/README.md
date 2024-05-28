@@ -1,6 +1,7 @@
 # Auto Test Script
 파일 `auto_test.sh` 는 quickstart 레포의 코드들을 자동으로 테스트하기 위해서 만든 스크립트입니다.
 이 스크립트를 통해 모델 및 하이퍼파라미터의 조합에 따른 throughput, vram 사용량을 확인할 수 있습니다.
+측정은 테스트 케이스 당 30분을 기준으로 합니다.
 
 
 # Usage
