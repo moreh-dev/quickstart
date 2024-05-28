@@ -71,7 +71,7 @@ epoch : `--epochs`
 출력 예시)
 <img width="784" alt="image" src="https://github.com/moreh-dev/quickstart/assets/138426917/3f13ae7d-6d1c-420f-8d4e-f1845dc86b2c">
 
-## 4. Use other model
+## 4. Different usage
 만약 quickstart가 아닌 다른 곳에서 이 스크립트를 사용하고자 한다면 `auto_test.sh` 파일 내의 `morehdocs` 가 적힌 주석을 찾아 아래 두라인을 삭제하고 사용할 것.
 
 
