@@ -47,7 +47,7 @@ function run_python() {
             fi
         done
     else
-        for i in {1..${time_out}}
+        for ((i=1; i<=time_out; i++))
         do
               sleep 60
             echo "moreh-smi check ${i} min"
