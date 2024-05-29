@@ -12,7 +12,7 @@ sda="4"
 input_batch_size=0
 input_block_size=1024
 log_path="logs"
-end_time=60
+time_out=60
 
 function change_sda() {
     {
@@ -36,7 +36,7 @@ function run_python() {
 
     PID=$!
     rm -rf "${log_path}/${model_name}_sda_${sda}_batch${input_batch_size}_block${input_block_size}_moreh_smi.log"
-    if [[ "false" == "$end_time" ]]; then
+    if [[ "false" == "$time_out" ]]; then
         while true; do
             if ps -p $PID > /dev/null; then
                 sleep 60
@@ -47,7 +47,7 @@ function run_python() {
             fi
         done
     else
-        for i in {1..${end_time}}
+        for i in {1..${time_out}}
         do
               sleep 60
             echo "moreh-smi check ${i} min"
@@ -142,14 +142,14 @@ while IFS= read -r line || [ -n "$line" ]; do
     fi
 
     # Check for end time
-    if [[ $line =~ end_time ]]; then
-        user_end_time=$(echo "$line" | awk -F'=' '{print $2}' | sed 's/[", ]//g')
+    if [[ $line =~ time_out ]]; then
+        user_time_out=$(echo "$line" | awk -F'=' '{print $2}' | sed 's/[", ]//g')
         if [[ $script_path =~ ^[0-9]+$ ]]; then
-            end_time=user_end_time
-        elif [[ "false" == "$user_end_time" ]]; then
-            end_time=user_end_time
+            time_out=user_time_out
+        elif [[ "false" == "$user_time_out" ]]; then
+            time_out=user_time_out
         else
-            echo "The end_time '$user_end_timed' is invalid"
+            echo "The time_out '$time_out' is invalid"
             exit 1
         fi
     fi
