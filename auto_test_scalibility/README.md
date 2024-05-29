@@ -13,11 +13,12 @@
 
 ## 1. Write config file
 `config.txt` 에 테스트하실 모델명과 argument 조합을 선언해주세요.
-- `model_name` : 테스트할 모델명. quickstart repository에서 prepare_${model_name}_dataset.py, train_${model_name}.py, requirements_${model_name} 와 같이 이름의 규칙이 정해져있음을 가정하고 받는 Input입니다.
-- `script_path` : 실행할 python script 파일 위치
-- `model_path` : 모델의 체크포인트 위치 (테스트를 위함), default으로 줄 경우 코드 자체의 default path를 사용
-- `log_path` : 실행결과에 대한 로그가 저장될 위치 디렉토리.
-- `model_arguments` : Python script 실행 시 줄 argument들, 현재는 batch_size, block_size, sda를 넣을 수 있음.(quickstart repo에서 block_size는 조절 불가. 이는 다른 모델 테스트를 위해 추가한 기능)
+- `model_name` : (str) 테스트할 모델명. quickstart repository에서 prepare_${model_name}_dataset.py, train_${model_name}.py, requirements_${model_name} 와 같이 이름의 규칙이 정해져있음을 가정하고 받는 Input입니다.
+- `script_path` : (str) 실행할 python script 파일 위치
+- `model_path` : (str) 모델의 체크포인트 위치 (테스트를 위함), default으로 줄 경우 코드 자체의 default path를 사용
+- `log_path` : (str) 실행결과에 대한 로그가 저장될 위치 디렉토리.
+- `model_arguments` : (str) Python script 실행 시 줄 argument들, 현재는 batch_size, block_size, sda를 넣을 수 있음.(quickstart repo에서 block_size는 조절 불가. 이는 다른 모델 테스트를 위해 추가한 기능)
+- `time_out`: (int or 'defualt') Python script를 종료할 시점. 기본값은 30 입니다.(분 단위)
 
 ### Example
 
