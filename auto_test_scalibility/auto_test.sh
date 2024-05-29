@@ -25,7 +25,7 @@ function change_sda() {
 
 
 function run_python() {
-    echo "batch size : $input_batch_size, log path : logs/${model_name}_${sda}_batch${input_batch_size}_block${input_block_size}.log"
+    echo "batch size : $input_batch_size, log path : ${log_path}/${model_name}_${sda}_batch${input_batch_size}_block${input_block_size}.log"
     if [ "default" == "${batch_size}" ] | [ "default" == "${block_size}" ]; then {
             python -u $script_path --model-name-or-path ${model_path} --epochs 1
         } \
