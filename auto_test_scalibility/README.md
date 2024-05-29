@@ -1,8 +1,16 @@
 # Auto Test Script
 파일 `auto_test.sh` 는 quickstart 레포의 코드들을 자동으로 테스트하기 위해서 만든 스크립트입니다.
 이 스크립트를 통해 모델 및 하이퍼파라미터의 조합에 따른 throughput, vram 사용량을 확인할 수 있습니다.
+측정은 테스트 케이스 당 30분을 기준으로 합니다.
+지원 모델을 우선적으로 수정없이 llama3 70b 를 제외한 tutorial 모델이며, 타 모델 사용 시 아래의 설명대로 수정 후 사용 바랍니다.
+
+## Tip : Different usage
+만약 quickstart가 아닌 다른 곳에서 이 스크립트를 사용하고자 한다면 `auto_test.sh` 파일 내의 `morehdocs` 가 적힌 주석을 찾아 아래 두라인을 삭제하고 사용할 것.
+
+
 
 # Usage
+
 ## 1. Write config file
 `config.txt` 에 테스트하실 모델명과 argument 조합을 선언해주세요.
 - `model_name` : 테스트할 모델명. quickstart repository에서 prepare_${model_name}_dataset.py, train_${model_name}.py, requirements_${model_name} 와 같이 이름의 규칙이 정해져있음을 가정하고 받는 Input입니다.
@@ -66,5 +74,6 @@ epoch : `--epochs`
 전자는 모델 학습의 로그, 후자는 학습 동안의 moreh-smi 로그입니다.  
 `parse.sh` 를 실행하면 SDA와 batch size에 따른 max throughput, max mem usage가 출력됩니다. 
 
-출력 예시)
+출력 예시)  
 <img width="784" alt="image" src="https://github.com/moreh-dev/quickstart/assets/138426917/3f13ae7d-6d1c-420f-8d4e-f1845dc86b2c">
+
