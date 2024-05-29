@@ -92,6 +92,4 @@ epoch : `--epochs`
 python log_parser.py
 ```
 
-출력 예시)  
-<img width="784" alt="image" src="https://github.com/moreh-dev/quickstart/assets/138426917/3f13ae7d-6d1c-420f-8d4e-f1845dc86b2c">
 
