@@ -80,14 +80,17 @@ block size(seq_len) : `--block-size`
 epoch : `--epochs`
 
 ## 3. Parsing
-위에서 실행한 스크립트의 결과는 모두 logs/ 에 모이게 됩니다.  
+위에서 실행한 스크립트의 결과는 모두 default로 logs/ 에 모이게 됩니다.  
 파일의 형식은 아래와 같습니다.  
   
-`${log_path}/${model_name}_${sda}_batch${batch_size}_block${block_size}.log`  
-`${log_path}/${model_name}_${sda}_batch${batch_size}_block${block_size}_moreh_smi.log`  
+`${log_path}/${model_name}_sda_${sda}_batch${batch_size}_block${block_size}.log`  
+`${log_path}/${model_name}_sda_${sda}_batch${batch_size}_block${block_size}_moreh_smi.log`  
   
 전자는 모델 학습의 로그, 후자는 학습 동안의 moreh-smi 로그입니다.  
-`parse.sh` 를 실행하면 SDA와 batch size에 따른 max throughput, max mem usage가 출력됩니다. 
+`log_parser.py` 를 ~/quickstart 위치로 복사 후 실행하면 SDA와 batch size에 따른 max throughput, max mem usage가 출력됩니다. 
+```
+python log_parser.py
+```
 
 출력 예시)  
 <img width="784" alt="image" src="https://github.com/moreh-dev/quickstart/assets/138426917/3f13ae7d-6d1c-420f-8d4e-f1845dc86b2c">
