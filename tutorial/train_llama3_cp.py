@@ -5,8 +5,7 @@ import torch
 from loguru import logger
 from datasets import load_dataset
 from argparse import ArgumentParser
-from transformers import AdamW, AutoModelForCausalLM, AutoTokenizer
-
+from transformers import AdamW, LlamaForCausalLM, LlamaTokenizer, AutoTokenizer
 
 # Compose pad token mask
 def create_mask(input_ids, tokenizer):
@@ -26,7 +25,7 @@ def parse_args():
     parser.add_argument(
         "--model-name-or-path",
         type=str,
-        default="./llama-2-13b-hf",
+        default="/nas/team_cx/checkpoints/llama3-8b-base",
         help="model name or path",
     )
     parser.add_argument(
@@ -50,7 +49,7 @@ def parse_args():
     parser.add_argument(
         "--dataset-name-or-path", 
         type=str, 
-        default="./llama2_dataset.pt", 
+        default="./llama3_dataset.pt", 
         help="dataset name or path"
     )
     parser.add_argument(
@@ -68,7 +67,7 @@ def parse_args():
     parser.add_argument(
         "--save-model-dir", 
         type=str, 
-        default="./llama2_summarization", 
+        default="./llama3_summarization", 
         help="path to save model"
     )
     args = parser.parse_args()
@@ -81,7 +80,7 @@ def main(args):
     
     # Load base model and tokenizer
     tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path)
-    model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path)
+    model = LlamaForCausalLM.from_pretrained(args.model_name_or_path)
 
     # Apply Advanced Parallelization
     torch.moreh.option.enable_advanced_parallelization()
@@ -134,7 +133,6 @@ def main(args):
             throughput = (args.batch_size * args.block_size) / duration
             if step % args.log_interval == 0:
                 logger.info(f"[Step {step+(epoch*len(train_dataloader))}/{total_step}] | Loss: {loss.item()} | Duration: {duration:.2f} | Throughput: {throughput:.2f} tokens/sec")
-    
     print("Training Done")
     print("Saving Model...")
     model.save_pretrained(args.save_model_dir)

@@ -17,8 +17,8 @@ def train(args):
     # Apply Advanced Parallelization
     torch.moreh.option.enable_advanced_parallelization()
     # Load base model and tokenizer
-    model = AutoModelForCausalLM.from_pretrained(args.model)
-    tokenizer = AutoTokenizer.from_pretrained(args.model)
+    model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path)
+    tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path)
     
     # Prepare the model for training on Accelerator
     model.cuda()
@@ -28,7 +28,7 @@ def train(args):
     tokenizer.pad_token_id = tokenizer.unk_token_id
 
     # Load MBPP dataset and set its format to PyTorch tensors
-    dataset = torch.load(args.dataset)
+    dataset = torch.load(args.dataset_name_or_path)
 
     # Create a DataLoader for the training set
     train_dataloader = torch.utils.data.DataLoader(
@@ -96,12 +96,12 @@ def train(args):
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", type = str, default = "cerebras/Cerebras-GPT-13B")
+    parser.add_argument("--model-name-or-path", type = str, default = "cerebras/Cerebras-GPT-13B")
     parser.add_argument("--batch-size", type = int, default = 32)
-    parser.add_argument("--block-size", type = int, default = 2048)
+    parser.add_argument("--block-size", type = int, default = 1024)
     parser.add_argument("--lr", type=float, default=0.00001)
     parser.add_argument("--epochs", type=int, default=4)
-    parser.add_argument("--dataset", type =str, default="./gpt_dataset.pt")
+    parser.add_argument("--dataset-name-or-path", type =str, default="./gpt_dataset.pt")
     parser.add_argument("--model-save-path", type =str, default="./gpt_checkpoint")
     parser.add_argument("--log-interval", type =int, default=10)
     args = parser.parse_args()
