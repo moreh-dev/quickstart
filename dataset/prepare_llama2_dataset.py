@@ -72,7 +72,7 @@ def main(args):
 
     print("Preprocessing dataset...")
     # Preprocess dataset
-    dataset = dataset.map(preprocess)
+    dataset = dataset.map(preprocess, num_proc=16, load_from_cache_file=True)
 
     print("Saving datset into torch format...")
     torch.save(dataset, args.save_path)

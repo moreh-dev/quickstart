@@ -6,13 +6,48 @@ Test_list = [
     log_path = "logs",
     model_arguments = [
         batch_size = default, block_size = default, sda=8,
-        batch_size = 64, block_size = 1024, sda=6
     ]
 },
 {
     model_name = "llama2",
     script_path = "tutorial/train_llama2.py",
     model_path = "/nas/team_cx/checkpoints/llama2-13b-hf",
+    log_path = "logs",
+    model_arguments = [
+        batch_size = default, block_size = default, sda=8
+    ]
+},
+{
+    model_name = "baichuan",
+    script_path = "tutorial/train_baichuan2_13b.py",
+    model_path = "/nas/team_cx/checkpoints/baichuan2-13b-hf",
+    log_path = "logs",
+    model_arguments = [
+        batch_size = default, block_size = default, sda=8
+    ]
+},
+{
+    model_name = "qwen",
+    script_path = "tutorial/train_qwen.py",
+    model_path = "/nas/team_cx/checkpoints/qwen1.5-7b/",
+    log_path = "logs",
+    model_arguments = [
+        batch_size = default, block_size = default, sda=8
+    ]
+},
+{
+    model_name = "mistral",
+    script_path = "tutorial/train_mistral.py",
+    model_path = "/nas/team_cx/checkpoints/mistral-7b-v1/",
+    log_path = "logs",
+    model_arguments = [
+        batch_size = default, block_size = default, sda=8
+    ]
+},
+{
+    model_name = "gpt",
+    script_path = "tutorial/train_gpt.py",
+    model_path = "/nas/hugh/cache/hub/models--gpt2",
     log_path = "logs",
     model_arguments = [
         batch_size = default, block_size = default, sda=8

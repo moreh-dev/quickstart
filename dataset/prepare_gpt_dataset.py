@@ -1,14 +1,42 @@
 from datasets import load_dataset
 from transformers import AdamW, AutoTokenizer
 import torch
-import argparse
+from argparse import ArgumentParser
 
-def dataset_preprocess(args):
 
-    dataset = load_dataset(args.dataset, split = "train").with_format("torch")
-    tokenizer = AutoTokenizer.from_pretrained(args.model)
+
+def parse_args():
+    parser = ArgumentParser()
+    parser.add_argument(
+        "--dataset-name-or-path",
+        type=str,
+        help="dataset name or path",
+        default='mlabonne/Evol-Instruct-Python-26k'
+    )
+    parser.add_argument(
+        "--model-name-or-path",
+        type=str,
+        help="model name or path",
+        default='cerebras/Cerebras-GPT-13B'
+    )
+    parser.add_argument(
+        "--block-size",
+        type=int,
+        default=1024,
+        help="max input token length"
+    )
+    parser.add_argument(
+        "--save-path",
+        type=str,
+        default='./gpt_dataset.pt'
+    )
+    args = parser.parse_args()
+    return args
+
+def main(args):
+    dataset = load_dataset(args.dataset_name_or_path, split = "train").with_format("torch")
+    tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path)
     # Construct a formatted prompt
-
     def create_prompt(prompt):
         full_prompt = f"[INST] {prompt['instruction']} [/INST]\n{prompt['output']}</s>"
         return full_prompt
@@ -25,27 +53,16 @@ def dataset_preprocess(args):
         )
 
         return {
-            "input_ids": tokenized["input_ids"], 
+            "input_ids": tokenized["input_ids"],
             "attention_mask": tokenized["attention_mask"],
         }
 
     # Apply preprocess function
-    _dataset = dataset.map(preprocess)
-    torch.save(_dataset, args.save_path)
+    _dataset = dataset.map(preprocess, num_proc=16, load_from_cache_file=True)
+    torch.save(_dataset, args.save_path) 
+
+
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--dataset", type=str, default="mlabonne/Evol-Instruct-Python-26k"
-    )
-    parser.add_argument(
-        "--model", type=str, default="cerebras/Cerebras-GPT-13B"
-    )
-    parser.add_argument(
-        "--block-size", default=2048, type=int
-    )
-    parser.add_argument(
-        "--save-path", type=str, default='./gpt_dataset.pt'
-    )
-    args = parser.parse_args()
-    dataset_preprocess(args)
+    args = parse_args()
+    main(args)

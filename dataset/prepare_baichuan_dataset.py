@@ -55,7 +55,7 @@ def main(args):
             "attention_mask": tokenized["attention_mask"],
         }
 
-    dataset = dataset.map(preprocess)
+    dataset = dataset.map(preprocess, num_proc=16, load_from_cache_file=True)
     torch.save(dataset, args.save_path)
 
 

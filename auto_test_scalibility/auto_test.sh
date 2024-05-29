@@ -7,11 +7,12 @@ echo "Is blocksize argument name --block-size"
 echo "Please check this points and if you are not setting like above, please fix your code and restart this script"
 echo "---------------------------------------------------------------"
 
+
 sda="4"
 input_batch_size=0
 input_block_size=1024
 log_path="logs"
-
+end_time=60
 
 function change_sda() {
     {
@@ -25,23 +26,39 @@ function change_sda() {
 
 function run_python() {
     echo "batch size : $input_batch_size, log path : logs/${model_name}_${sda}_batch${input_batch_size}_block${input_block_size}.log"
-    if [ "default" == "$batch_size" | "default" == "${block_size}" ]; then
-        python $script_path --model-name-or-path ${model_path} > "${log_path}/${model_name}_${sda}_batch${input_batch_size}_block${input_block_size}.log" 2>&1 &
+    if [ "default" == "${batch_size}" ] | [ "default" == "${block_size}" ]; then {
+            python -u $script_path --model-name-or-path ${model_path} --epochs 1
+        } \
+            > "${log_path}/${model_name}_sda_${sda}_batch${input_batch_size}_block${input_block_size}.log" 2>&1 &
     else
-        python $script_path --model-name-or-path ${model_path} --epochs 1 --batch-size $input_batch_size --block-size $input_block_size > "${log_path}/${model_name}_${sda}_batch${input_batch_size}_block${input_block_size}.log" 2>&1 &
+        nohup python $script_path --model-name-or-path ${model_path} --epochs 1 --batch-size $input_batch_size --block-size $input_block_size > "${log_path}/${model_name}_sda_${sda}_batch${input_batch_size}_block${input_block_size}.log" 2>&1 &
     fi
-    PID=$!
-    echo "pid is $PID"
-    for i in {1..30}
-    do
-        sleep 60
-        echo "moreh-smi check ${i}"
-        moreh-smi >> "${log_path}/${model_name}_${sda}_batch${input_batch_size}_block${input_block_size}_moreh_smi.log" &
-    done
 
-    kill ${PID}
-    sleep 10
+    PID=$!
+    rm -rf "${log_path}/${model_name}_sda_${sda}_batch${input_batch_size}_block${input_block_size}_moreh_smi.log"
+    if [[ "false" == "$end_time" ]]; then
+        while true; do
+            if ps -p $PID > /dev/null; then
+                sleep 60
+                echo "moreh-smi check ${i} min"
+                moreh-smi >> "${log_path}/${model_name}_sda_${sda}_batch${input_batch_size}_block${input_block_size}_moreh_smi.log" &
+            else
+                break
+            fi
+        done
+    else
+        for i in {1..${end_time}}
+        do
+              sleep 60
+            echo "moreh-smi check ${i} min"
+            moreh-smi >> "${log_path}/${model_name}_sda_${sda}_batch${input_batch_size}_block${input_block_size}_moreh_smi.log" &
+        done
+
+    fi
+
     moreh-smi -r
+    sleep 10
+    kill ${PID}
     sleep 10
 }
 
@@ -76,8 +93,6 @@ function install_packages() {
 }
 
 
-# Parse And Print Config File
-#!/bin/bash
 
 # Create a temporary config file for testing
 config_file=$1
@@ -126,6 +141,19 @@ while IFS= read -r line || [ -n "$line" ]; do
         echo "Model Path: $script_path"
     fi
 
+    # Check for end time
+    if [[ $line =~ end_time ]]; then
+        user_end_time=$(echo "$line" | awk -F'=' '{print $2}' | sed 's/[", ]//g')
+        if [[ $script_path =~ ^[0-9]+$ ]]; then
+            end_time=user_end_time
+        elif [[ "false" == "$user_end_time" ]]; then
+            end_time=user_end_time
+        else
+            echo "The end_time '$user_end_timed' is invalid"
+            exit 1
+        fi
+    fi
+
     # Check for log_path
     if [[ $line =~ log_path ]]; then
         log_path=$(echo "$line" | awk -F'=' '{print $2}' | sed 's/[", ]//g')
@@ -135,16 +163,17 @@ while IFS= read -r line || [ -n "$line" ]; do
         fi
         echo "Log Path: $log_path"
         echo "Model name: ${model_name}, Script path: ${script_path} Model path: ${model_path}, Log path: ${log_path}"
-#        install_packages
+        #Below two lines are dependence on quickstart (morehdocs)
+        install_packages
         prepare_dataset
     fi
+
 
     # Check for model_arguments
     if [[ $line =~ model_arguments ]]; then
         in_arguments_block=1
         continue
     fi
-
     # Parse model_arguments
     if [[ $in_arguments_block -eq 1 ]]; then
         # Break when the end of the arguments list is reached

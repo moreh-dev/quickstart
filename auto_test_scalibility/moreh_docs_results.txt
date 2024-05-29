@@ -1,0 +1,6 @@
+llama3 220000 tps 1472925 mib
+llama2 33444 tps 1806648 mib
+mistral 56813 tps 1138546 mib
+gpt 6836 tps 1806648 mib
+qwen 50000 tps 853677 mib
+baichuan 190000 tps 191605 mib

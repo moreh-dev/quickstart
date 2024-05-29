@@ -4,7 +4,7 @@ import torch
 from datasets import load_dataset
 from argparse import ArgumentParser
 from transformers import AutoTokenizer
-
+import os, sys
 
 def parse_args():
     parser = ArgumentParser()
@@ -37,9 +37,13 @@ def parse_args():
 
 def main(args):
 
+    file_list = [fn for fn in os.listdir('./')]
+    if args.model_name_or_path == './llama3-8b' and 'llama3-8b' not in file_list:
+        print('[INFO] tokenizer path changed to ./llama3-70b')
+        args.model_name_or_path = './llama3-70b'
     # Load tokenizer
     print(f"Loading {args.model_name_or_path} Tokenizer...")
-    tokenizer = AutoTokenizer.from_pretrained("meta-llama/Meta-Llama-3-8B")
+    tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path)
 
     # Set pad token
     tokenizer.pad_token_id = 0
@@ -72,7 +76,7 @@ def main(args):
 
     print("Preprocessing dataset...")
     # Preprocess dataset
-    dataset = dataset.map(preprocess, num_proc=16)
+    dataset = dataset.map(preprocess, num_proc=16, load_from_cache_file=True)
 
     print("Saving datset into torch format...")
     torch.save(dataset, args.save_path)
