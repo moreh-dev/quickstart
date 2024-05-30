@@ -89,7 +89,7 @@ epoch : `--epochs`
 전자는 모델 학습의 로그, 후자는 학습 동안의 moreh-smi 로그입니다.  
 `log_parser.py` 를 ~/quickstart 위치로 복사 후 실행하면 SDA와 batch size에 따른 max throughput, max mem usage가 출력됩니다. 
 ```
-python log_parser.py
+python log_parser.py --log-path logs/
 ```
 
 
