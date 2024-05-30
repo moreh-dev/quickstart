@@ -3,10 +3,10 @@
 - [Quickstart](#quickstart)
 - [Getting Started](#getting-started)
   - [Dependency Installation](#dependency-installation)
-  - [Model Prepare](#model-prepare)
+  - [Model Preparation](#model-preparation)
 - [Fine-tuning](#fine-tuning)
   - [Activate Moreh Advanced Parallelization(AP)](#activate-moreh-advanced-parallelizationap)
-  - [LLM](#llm)
+  - [LLM Information](#llm-information)
     - [Training](#training)
     - [Inference](#inference)
   - [Stable Diffusion XL](#stable-diffusion-xl)
@@ -17,7 +17,7 @@
 This repository provides code to experiment with training large models on [Moreh's MoAI Platform](https://moreh.io/product).
 With the MoAI platform you can scale to thousands of GPU/NPUs by automatic parallelization and optimization, without any code changes.
 
-We currently provide five LLMs; Qwen1.5, Llama2, Mistral, GPT and Baichuan2, as well as SDXL.
+We currently provide six LLMs; Llama3, Llama2, Qwen1.5, Mistral, GPT and Baichuan2, as well as SDXL.
 
     
 # Getting Started
@@ -30,10 +30,10 @@ First, clone this repository and navigate to the repo directory.
 git clone https://github.com/moreh-dev/quickstart
 cd quickstart
 ```
-After you are in the `quickstart` directory, install the dependency packages for the model you want to fine-tune. The requirements files for each model are located in the `requirements` directory. For example, to install the dependencies for the Llama2 model, use the following command:
+After you are in the `quickstart` directory, install the dependency packages for the model you want to fine-tune. The requirements files for each model are located in the `requirements` directory. For example, to install the dependencies for the Llama3 model, use the following command:
 
 ```bash
-pip install -r requirements/requirements_llama2.txt
+pip install -r requirements/requirements_llama3.txt
 ```
 
 ## Model Preparation
@@ -90,14 +90,14 @@ python tutorial/train_llama3.py \
 
 
 ### Inference
-| **Baseline Model**       | **Infernece Script**                    |
-| --------------- | -------------------------------- |
-| Llama3 8B & 70B | `tutorial/inference_llama3.py`   |
-| Llama2 7B         | `tutorial/inference_llama2.py`   |
-| Qwen1.5 7B        | `tutorial/inference_qwen.py`     |
-| Mistral 7B        | `tutorial/inference_mistral.py`  |
+| **Baseline Model** | **Infernece Script**             |
+| ------------------ | -------------------------------- |
+| Llama3 8B          | `tutorial/inference_llama3.py`   |
+| Llama2 7B          | `tutorial/inference_llama2.py`   |
+| Qwen1.5 7B         | `tutorial/inference_qwen.py`     |
+| Mistral 7B         | `tutorial/inference_mistral.py`  |
 | Cerebras GPT 13B   | `tutorial/inference_gpt.py`      |
-| Baichuan2 13B       | `tutorial/inference_baichuan.py` |
+| Baichuan2 13B      | `tutorial/inference_baichuan.py` |
 
 Perform inference by running the inference script for each model. For example, to proceed with inference on fine-tuned Llama3 models:
 
