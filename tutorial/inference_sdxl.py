@@ -3,7 +3,7 @@ from diffusers.pipelines.stable_diffusion_xl.pipeline_stable_diffusion_xl import
 from diffusers import DDPMScheduler
 import torch
 
-PROMPT = "a man with grey hair and a red jacket"
+PROMPT = "Bill Gates with a hoodie"
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="SDXL Training Script")

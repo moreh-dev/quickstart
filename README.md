@@ -102,14 +102,17 @@ python tutorial/train_llama3.py \
 Perform inference by running the inference script for each model. For example, to proceed with inference on fine-tuned Llama3 models:
 
 ```bash 
-python tutorial/train_llama3.py \
+python tutorial/inference_llama3.py \
   --model-name-or-path=${SAVE_DIR_PATH}
 ```
 
 ```bash
 # output example
-Llama3: [SUMMARIZE] (CNN)Arsenal kept their slim hopes of winning this season's English Premier League title alive by beating relegation threatened Burnley 1-0 at Turf Moor. A first half goal from Welsh international Aaron Ramsey was enough to separate the two sides and secure Arsenal's hold on second place. More importantly it took the north London club to within four points of first placed Chelsea, with the two clubs to play next week. 
-...
+Llama3: [SUMMARIZE] (CNN)Arsenal kept their slim hopes of winning this season's English Premier League title alive by beating relegation threatened Burnley 1-0 at Turf Moor. A first half goal from Welsh international Aaron Ramsey was enough to separate the two sides and secure Arsenal's ... [/SUMMAIRZE]
+Arsenal beat Burnley 1-0 in the English Premier League.
+Aaron Ramsey scores the only goal of the game.
+Arsenal remain in second place.
+Chelsea can extend their lead to seven points.
 ```
 
 
@@ -146,10 +149,15 @@ python tutorial/inference_sdxl.py \
 Adjust the prompt by editing the PROMPT variable in the inference script:
 ```python
 ...
-PROMPT = "a man with grey hair and a red jacket"
+PROMPT = "Bill Gates with a hoodie"
 ...
 ```
 
 
-The resulting image will be saved as `sdxl_result.jpg`.
+The resulting image will be saved as `sdxl_result.jpg`.  
+
+The image on the left shows the inference results of the model before fine-tuning, while the image on the right shows the inference results of the fine-tuned model. It can be seen that fine-tuning has been successfully carried out.
+
+<img src="assets/sdxl_nofinetune.png" alt="drawing" style="width:200px;"/> 
+<img src="assets/sdxl_withfinetune.png" alt="drawing" style="width:200px;"/>
 

@@ -167,6 +167,7 @@ cython_debug/
 
 # Image
 *.png
+!assets/*.png
 
 # Models
 *.safetensors
