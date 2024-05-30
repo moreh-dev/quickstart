@@ -19,8 +19,7 @@ import numpy as np
 import copy
 import sys, os
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(sys.path[0]), 'model')))
-from modeling_sdxl import SDXL
+from model.modeling_sdxl import SDXL
 
 
 def parse_args():
@@ -34,7 +33,7 @@ def parse_args():
     parser.add_argument("--lr", type=float, default=1e-5, help="learning rate")
 
     parser.add_argument(
-        "--lr_scheduler",
+        "--lr-scheduler",
         type=str,
         default="constant",
         help=(
