@@ -156,8 +156,8 @@ PROMPT = "Bill Gates with a hoodie"
 
 The resulting image will be saved as `sdxl_result.jpg`.  
 
-The image on the left shows the inference results of the model before fine-tuning, while the image on the right shows the inference results of the fine-tuned model. It can be seen that fine-tuning has been successfully carried out.
-
+The image on the left shows the inference results of the model before fine-tuning, while the image on the right shows the inference results of the fine-tuned model.
+<p align="center">
 <img src="assets/sdxl_nofinetune.png" alt="drawing" style="width:200px;"/> 
 <img src="assets/sdxl_withfinetune.png" alt="drawing" style="width:200px;"/>
-
+</p>
