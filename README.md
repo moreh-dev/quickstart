@@ -31,15 +31,14 @@ First, clone this repository and move to the repo directory.
 git clone https://github.com/moreh-dev/quickstart
 cd quickstart
 ```
-After you are in `quickstart` directory, install dependency packages according to the model you want to fine-tune.
-The requirements files for each model are located under the `requirements` directory. For example, when you want to install dependency packages for the Llama2 model, you can use the following commands.
+After you are in the `quickstart` directory, install the dependency packages according to the model you want to fine-tune. The requirements files for each model are located in the `requirements` directory. For example, when you want to install the dependency packages for the Llama2 model, you can use the following commands.
 
 ```bash
 pip install -r requirements/requirements_llama2.txt
 ```
 
 ## Model Prepare
-If you want to fine-tune llama2/llama3/mistral model, You need to get granted access to Llama2/Llam3/Mistral huggingface repository. Please check these repository before you start model training.
+If you want to fine-tune the Llama2, Llama3, or Mistral models, you need to get granted access to the Llama2, Llama3, or Mistral Huggingface repository. Please check these repositories before you start model training.
 - Llama3 : https://huggingface.co/meta-llama/Meta-Llama-3-8B or https://huggingface.co/meta-llama/Meta-Llama-3-70B
 - Llama2 : https://huggingface.co/meta-llama/Llama-2-7b-hf
 - Mistral : https://huggingface.co/mistralai/Mistral-7B-v0.1
