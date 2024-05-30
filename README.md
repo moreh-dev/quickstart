@@ -14,36 +14,35 @@
     - [Inference](#inference-1)
 # Quickstart
 
-This repository provides code to experiment with training large models on the [Moreh's MoAI Platform](https://moreh.io/product).
-With MoAI platform you can scale to thousands of GPU/NPUs by automatic parallelization and optimization, without any code changes.
+This repository provides code to experiment with training large models on [Moreh's MoAI Platform](https://moreh.io/product).
+With the MoAI platform you can scale to thousands of GPU/NPUs by automatic parallelization and optimization, without any code changes.
 
-We currently provide 5 LLMs; Qwen1.5, Llama2, Mistral, GPT and Baichuan2, and SDXL.
+We currently provide five LLMs; Qwen1.5, Llama2, Mistral, GPT and Baichuan2, as well as SDXL.
 
     
 # Getting Started
-This repository contains examples of PyTorch training codes that can be executed on the MoAI Platform. Users using Pytorch on the MoAI Platform can easily train large models without painful effort. For more information of the MoAI Platform and detailed tutorials, please see [Moreh Docs](https://docs.moreh.io).
+This repository contains examples of PyTorch training codes that can be executed on the MoAI Platform. Users using Pytorch on the MoAI Platform can easily train large models without extensive effort. For more information about the MoAI Platform and detailed tutorials, please visit the [Moreh Docs](https://docs.moreh.io).
 
 ## Dependency Installation
 
-
-First, clone this repository and move to the repo directory.
+First, clone this repository and navigate to the repo directory.
 ```bash
 git clone https://github.com/moreh-dev/quickstart
 cd quickstart
 ```
-After you are in the `quickstart` directory, install the dependency packages according to the model you want to fine-tune. The requirements files for each model are located in the `requirements` directory. For example, when you want to install the dependency packages for the Llama2 model, you can use the following commands.
+After you are in the `quickstart` directory, install the dependency packages for the model you want to fine-tune. The requirements files for each model are located in the `requirements` directory. For example, to install the dependencies for the Llama2 model, use the following command:
 
 ```bash
 pip install -r requirements/requirements_llama2.txt
 ```
 
-## Model Prepare
-If you want to fine-tune the Llama2, Llama3, or Mistral models, you need to get granted access to the Llama2, Llama3, or Mistral Huggingface repository. Please check these repositories before you start model training.
+## Model Preparation
+If you want to fine-tune the Llama2, Llama3, or Mistral models, you need access to their respective Hugging Face repositories. Please ensure you have the necessary acess before starting model training.
 - Llama3 : https://huggingface.co/meta-llama/Meta-Llama-3-8B or https://huggingface.co/meta-llama/Meta-Llama-3-70B
 - Llama2 : https://huggingface.co/meta-llama/Llama-2-7b-hf
 - Mistral : https://huggingface.co/mistralai/Mistral-7B-v0.1
 
-After you get granted access on the models, run the following command to authenticate your token.
+After obtaining access, authenticate your token with the following command:
 ```
 huggingface-cli login
 ```
@@ -51,7 +50,7 @@ huggingface-cli login
 # Fine-tuning
 
 ## Activate Moreh Advanced Parallelization(AP)
-The following line is added in the each code to enable the AP on the MoAI Platform.
+The following line is added in the each code to enable AP on the MoAI Platform.
 ```python
 ...
 
@@ -59,9 +58,10 @@ torch.moreh.option.enable_advanced_parallelization()
 
 ...
 ```
-## LLM
+## LLM Information
 
-Information about the models currently supported by this repository, the target tasks for each model, and the training script is as follows.
+Information about the models currently supported by this repository, along with their target tasks and training scripts, are as follows:
+
 | **Baseline Model**    | **Task**           | **Training Script**                      | **Dataset**                                                                                                                                                |
 | ------------ | ------------------ | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [Llama3 8B](https://huggingface.co/meta-llama/Meta-Llama-3-8B)  | Text Summarization | `tutorial/train_llama3.py`     | [cnn_dailymail](https://huggingface.co/datasets/abisee/cnn_dailymail)                                                                                      |
@@ -74,8 +74,8 @@ Information about the models currently supported by this repository, the target 
 
 ### Training
 
-You can run each model's training script to fine-tune the model; for example, you can train the llama3 8B model as follows.
-The types of arguments that you can give when you run a script are the same for all scripts. 
+Run the training script to fine-tune the model. For example, to train the Llama3 8B model:
+
 ```bash 
 python tutorial/train_llama3.py \
   --epochs 1  \
@@ -99,7 +99,7 @@ python tutorial/train_llama3.py \
 | Cerebras GPT 13B   | `tutorial/inference_gpt.py`      |
 | Baichuan2 13B       | `tutorial/inference_baichuan.py` |
 
-Users can perfome inference by executing the infernce script for each model. For example, you can proceed with inference on fine-tuned llama3 models. 
+Perform inference by running the inference script for each model. For example, to proceed with inference on fine-tuned Llama3 models:
 
 ```bash 
 python tutorial/train_llama3.py \
@@ -107,11 +107,10 @@ python tutorial/train_llama3.py \
 ```
 
 ```bash
-# output
+# output example
 Llama3: [SUMMARIZE] (CNN)Arsenal kept their slim hopes of winning this season's English Premier League title alive by beating relegation threatened Burnley 1-0 at Turf Moor. A first half goal from Welsh international Aaron Ramsey was enough to separate the two sides and secure Arsenal's hold on second place. More importantly it took the north London club to within four points of first placed Chelsea, with the two clubs to play next week. 
 ...
 ```
-
 
 
 ## Stable Diffusion XL
@@ -123,6 +122,8 @@ We provide fine-tuning example code for the Stable Diffusion XL model.
 | -------------------------------------------------------------------------------------- | ------------------------ | ------------------------ | -------------------------------------------------------------------------------------------------- |
 | [Stable Diffusion XL](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0) | Test-to-Image Generation | `tutorial/train_sdxl.py` | [lambdalabs/naruto-blip-captions](https://huggingface.co/datasets/lambdalabs/naruto-blip-captions) |
 
+
+Run the training script for Stable Diffusion XL:
 
 ```bash 
 python tutorial/train_sdxl.py \
@@ -136,18 +137,19 @@ python tutorial/train_sdxl.py \
 ```
 
 ### Inference 
-After you finished your training, inference could be done with your fine-tuned model by following command:
+After training, you can proceed inference with your fine-tuned model using the following command:
 ```bash
 python tutorial/inference_sdxl.py \
   --model-name-or-path=${SAVE_DIR_PATH}
 ```
 
-You can adjust your prompt by editting `PROMPT` in the inference code.
+Adjust the prompt by editing the PROMPT variable in the inference script:
 ```python
 ...
 PROMPT = "a man with grey hair and a red jacket"
 ...
 ```
 
-Result image will be saved with name `sdxl_result.jpg`
+
+The resulting image will be saved as `sdxl_result.jpg`.
 
