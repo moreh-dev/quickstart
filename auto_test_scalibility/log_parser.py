@@ -129,13 +129,23 @@ def print_data(gpu_usage_datas, throughput_datas, args):
     else:
         print("GPU Memory Usage")
         print("-"*20)
+        print_gpu_list = []
+        print_throughput_list = []
         for k in gpu_usage_datas:
-            print(f"{k}'s avg mem usage is {gpu_usage_datas[k]:.2f} MiB({(gpu_usage_datas[k]/1024):.2f} GiB)")
+            print_gpu_list.append(f"{k}'s avg mem usage is {gpu_usage_datas[k]:.2f} MiB({(gpu_usage_datas[k]/1024):.2f} GiB)")
+            #print(f"{k}'s avg mem usage is {gpu_usage_datas[k]:.2f} MiB({(gpu_usage_datas[k]/1024):.2f} GiB)")
+        for info in sorted(print_gpu_list, reverse=True):
+            print(info)
+        
         print("-"*20)
         print("Throughputs")
         print("-"*20)
         for k in throughput_datas:
-            print(f"{k}'s avg throughput is {throughput_datas[k]}")
+            print_throughput_list.append(f"{k}'s avg throughput is {throughput_datas[k]}")
+            #print(f"{k}'s avg throughput is {throughput_datas[k]}")
+        for info in sorted(print_throughput_list, reverse=True):
+            print(info)
+
         print("-"*20)
 
 
