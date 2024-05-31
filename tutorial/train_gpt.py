@@ -1,68 +1,130 @@
-
-import os 
-import time
 import copy
-import argparse
+import time
+import torch
 
 from loguru import logger
-from transformers import AutoModelForCausalLM, AdamW, AutoTokenizer
-import torch
-import transformers
-from model.modeling_gpt import GPTModel
+from datasets import load_dataset
+from argparse import ArgumentParser
+from transformers import AdamW, AutoModelForCausalLM, AutoTokenizer
 
 
 
-def train(args):
+# Compose pad token mask
+def create_mask(input_ids, tokenizer):
+    pad_token_ids = tokenizer.pad_token_id if tokenizer.pad_token_id is not None else tokenizer.eos_token_id
+    return (input_ids != pad_token_ids).long()
 
-    # Apply Advanced Parallelization
+# Mask pad tokens
+def mask_pads(inputs, tokenizer, ignore_index=-100):
+    idx_mask = create_mask(inputs, tokenizer)
+    labels = copy.deepcopy(inputs)
+    labels[~idx_mask.bool()] = ignore_index
+    return labels
+
+# Arguments
+def parse_args():
+    parser = ArgumentParser(description="LLaMA2 FineTuning")
+    parser.add_argument(
+        "--model-name-or-path",
+        type=str,
+        default="cerebras/Cerebras-GPT-13B",
+        help="model name or path",
+    )
+    parser.add_argument(
+        "--epochs",
+        type=int,
+        default=1,
+        help="num training epochs"
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=32,
+        help="train bacth size"
+    )
+    parser.add_argument(
+        "--block-size",
+        type=int,
+        default=1024,
+        help="max input token length"
+    )
+    parser.add_argument(
+        "--dataset-name-or-path",
+        type=str,
+        default="mlabonne/Evol-Instruct-Python-26k",
+        help="dataset name or path"
+    )
+    parser.add_argument(
+        "--lr",
+        type=float,
+        default=0.00001,
+        help="learning rate"
+    )
+    parser.add_argument(
+        "--log-interval",
+        type=int,
+        default=10,
+        help="log interval"
+    )
+    parser.add_argument(
+        "--save-model-dir",
+        type=str,
+        default="./gpt_checkpoint",
+        help="path to save model"
+    )
+    args = parser.parse_args()
+
+
+    return args
+
+def main(args):
     torch.moreh.option.enable_advanced_parallelization()
     # Load base model and tokenizer
-    model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path)
+    print(f"Load {args.model_name_or_path} model checkpoint and tokenizer...")
     tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path)
-    
-    # Prepare the model for training on Accelerator
+    tokenizer.pad_token_id = tokenizer.unk_token_id
+    model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path)
     model.cuda()
     model.train()
 
-    # Use unknown token id as pad token id
-    tokenizer.pad_token_id = tokenizer.unk_token_id
+    dataset = load_dataset(args.dataset_name_or_path).with_format("torch")
+    # Tokenize and prepare the input prompt
+    def preprocess(prompt):
+        tokenized = tokenizer(
+            create_prompt(prompt),
+            padding="max_length",
+            truncation=True,
+            max_length=args.block_size,
+        )
 
-    # Load MBPP dataset and set its format to PyTorch tensors
-    dataset = torch.load(args.dataset_name_or_path)
+        return {
+            "input_ids": tokenized["input_ids"],
+            "attention_mask": tokenized["attention_mask"],
+        }
+
+    # Apply preprocess function
+    dataset = dataset.map(preprocess, num_proc=16, load_from_cache_file=True)
 
     # Create a DataLoader for the training set
     train_dataloader = torch.utils.data.DataLoader(
-        dataset,
+        dataset["train"],
         batch_size=args.batch_size,
         shuffle=True,
         drop_last=True,
     )
-    token_per_iter = args.batch_size * args.block_size
-    
-    # Mask pad tokens for training
-    def mask_pads(input_ids, attention_mask, ignore_index = -100):
-        idx_mask = attention_mask
-        labels = copy.deepcopy(input_ids)
-        labels[~idx_mask.bool()] = ignore_index
-        return labels
 
     # Define AdamW optimizer
     optim = AdamW(model.parameters(), lr=args.lr)
 
     # Calculate total training steps
     total_step = len(train_dataloader) * args.epochs
-    with open("gpt_log.log", "w") as f:
-        f.write("step,loss\n")
 
-    # Start training
     for epoch in range(args.epochs):
-        for i, batch in enumerate(train_dataloader):
-
-            start = time.time()
+        for step, batch in enumerate(train_dataloader, start=1):
+            start_time = time.perf_counter()
             input_ids = batch["input_ids"]
-            attn_mask = batch["attention_mask"]
-            labels = mask_pads(input_ids, attn_mask)
-            
+            inputs, labels = input_ids, mask_pads(input_ids, tokenizer)
+            attn_mask = create_mask(inputs, tokenizer)
             outputs = model(
                 input_ids.cuda(),
                 attention_mask=attn_mask.cuda(),
@@ -70,39 +132,22 @@ def train(args):
                 use_cache=False,
             )
             loss = outputs[0]
-            # breakpoint()
             loss.backward()
 
             optim.step()
             model.zero_grad(set_to_none=True)
-            end = time.time()
-            
-            if i % args.log_interval == 0:
-                loss_scalar = loss.item()
-                logger.info(f"[Step {i+(epoch*len(train_dataloader))}/{total_step}] Loss: {loss_scalar} Throughput: {token_per_iter/(end-start):.2f} tokens/sec" )
-                with open("gpt_log", "a") as f:
-                    f.write(f"{i+epoch*len(train_dataloader)},{loss_scalar}\n")
-            else:
-                logger.info(f"[Step {i+(epoch*len(train_dataloader))}/{total_step}] Throughput: {token_per_iter/(end-start):.2f} tokens/sec" )
-        print("Saving Model...")
-        #model.save_pretrained(args.model_save_path)
 
+            duration = time.perf_counter() - start_time
+            throughput = (args.batch_size * args.block_size) / duration
+            if step % args.log_interval == 0:
+                logger.info(f"[Step {step+(epoch*len(train_dataloader))}/{total_step}] | Loss: {loss.item()} | Duration: {duration:.2f} | Throughput: {throughput:.2f} tokens/sec")
 
-    # Save trained model
     print("Training Done")
     print("Saving Model...")
-    model.save_pretrained(args.model_save_path)
-    print(f"Model saved in {args.model_save_path}")
-    
+    model.save_pretrained(args.save_model_dir)
+    tokenizer.save_pretrained(args.save_model_dir)
+    print(f"Model saved in {args.save_model_dir}")
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--model-name-or-path", type = str, default = "cerebras/Cerebras-GPT-13B")
-    parser.add_argument("--batch-size", type = int, default = 32)
-    parser.add_argument("--block-size", type = int, default = 1024)
-    parser.add_argument("--lr", type=float, default=0.00001)
-    parser.add_argument("--epochs", type=int, default=4)
-    parser.add_argument("--dataset-name-or-path", type =str, default="./gpt_dataset.pt")
-    parser.add_argument("--model-save-path", type =str, default="./gpt_checkpoint")
-    parser.add_argument("--log-interval", type =int, default=10)
-    args = parser.parse_args()
-    train(args)
+    args = parse_args()
+    main(args)

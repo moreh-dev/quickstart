@@ -1,12 +1,14 @@
 import copy
-import time
 import torch
 
 from loguru import logger
-from datasets import load_dataset
 from argparse import ArgumentParser
 from transformers import AdamW, AutoModelForCausalLM, AutoTokenizer
+import sys, os
+import time
 
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(sys.path[0]), 'model')))
+from modeling_baichuan import BaichuanForCausalLM
 
 # Compose pad token mask
 def create_mask(input_ids, tokenizer):
@@ -14,25 +16,36 @@ def create_mask(input_ids, tokenizer):
     return (input_ids != pad_token_ids).long()
 
 # Mask pad tokens
-def mask_pads(inputs, tokenizer, ignore_index=-100):
+def mask_pads(inputs, tokenizer, ignore_index = -100):
     idx_mask = create_mask(inputs, tokenizer)
     labels = copy.deepcopy(inputs)
     labels[~idx_mask.bool()] = ignore_index
     return labels
 
+# Construct a formatted prompt
+def create_prompt(prompt):
+    full_prompt = f"[INST] {prompt['instruction']} \n Category is {prompt['category']} \n Intent is {prompt['intent']} [/INST]\n{prompt['response']}"
+    return full_prompt
+
+
 # Arguments    
 def parse_args():
-    parser = ArgumentParser(description="LLaMA2 FineTuning")
+    parser = ArgumentParser(description="Baichuan2 FineTuning")
     parser.add_argument(
         "--model-name-or-path",
         type=str,
-        default="meta-llama/Llama-2-13b-hf",
         help="model name or path",
+        default='baichuan-inc/Baichuan2-13B-Base'
+    )
+    parser.add_argument(
+        "--dataset-name-or-path",
+        type=str,
+        default='bitext/Bitext-customer-support-llm-chatbot-training-dataset',
     )
     parser.add_argument(
         "--epochs", 
         type=int, 
-        default=10, 
+        default=3, 
         help="num training epochs"
     )
     parser.add_argument(
@@ -48,15 +61,9 @@ def parse_args():
         help="max input token length"
     )
     parser.add_argument(
-        "--dataset-name-or-path", 
-        type=str, 
-        default="cnn_dailymail", 
-        help="dataset name or path"
-    )
-    parser.add_argument(
         "--lr", 
         type=float, 
-        default=0.00001, 
+        default=0.00005, 
         help="learning rate"
     )
     parser.add_argument(
@@ -68,57 +75,39 @@ def parse_args():
     parser.add_argument(
         "--save-model-dir", 
         type=str, 
-        default="./llama2_summarization", 
+        default="./baichuan_code_generation", 
         help="path to save model"
     )
     args = parser.parse_args()
-
-
     return args
 
 
-
-
 def main(args):
-    torch.moreh.option.enable_advanced_parallelization() 
+    
+    # Apply Advanced Parallelization
+    torch.moreh.option.enable_advanced_parallelization()
+    print(f"Load {args.model_name_or_path} model checkpoint and tokenizer...") 
     # Load base model and tokenizer
-    print(f"Load {args.model_name_or_path} model checkpoint and tokenizer...")
-    tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path)
-    model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path)
+    model = BaichuanForCausalLM.from_pretrained(args.model_name_or_path, trust_remote_code=True, torch_dtype='auto')
+    tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path, trust_remote_code=True)
+    # Prepare the model for training on Accelerator
     model.cuda()
     model.train()
 
-    # Apply Advanced Parallelization
-    # Set pad token
-    tokenizer.pad_token_id = 0
-    # Load dataset and set its format to PyTorch tensors
     print(f"Downloading {args.dataset_name_or_path} dataset...")
-    if args.dataset_name_or_path == "cnn_dailymail":
-        dataset = load_dataset(args.dataset_name_or_path, "3.0.0").with_format("torch")
-    else:
-        dataset = load_dataset(args.dataset_name_or_path).with_format("torch")
-
-
-    # Construct a formatted prompt
-    def create_prompt(prompt):
-        full_prompt = f"[SUMMARIZE] {prompt['article']} [/SUMMARIZE]\n{prompt['highlights']}</s>"
-        return full_prompt
-
-    # Tokenize and prepare the input prompt
+    dataset = load_dataset(args.dataset_name_or_path).with_format("torch")
     def preprocess(prompt):
-        input_ids = tokenizer(
+        tokenized = tokenizer(
             create_prompt(prompt),
-            return_attention_mask=False,
-            return_token_type_ids=False,
             padding="max_length",
             truncation=True,
             max_length=args.block_size,
-        )["input_ids"]
-
-        return {"input_ids": input_ids}
-
+        )
+        return {
+            "input_ids": tokenized["input_ids"],
+            "attention_mask": tokenized["attention_mask"],
+        }
     print("Preprocessing dataset...")
-    # Preprocess dataset
     dataset = dataset.map(preprocess, num_proc=16, load_from_cache_file=True)
 
     # Create a DataLoader for the training set
@@ -129,44 +118,55 @@ def main(args):
         drop_last=True,
     )
 
+    def mask_pads(input_ids, attention_mask, ignore_index = -100):
+        idx_mask = attention_mask
+        labels = copy.deepcopy(input_ids)
+        labels[~idx_mask.bool()] = ignore_index
+        return labels
+
     # Define AdamW optimizer
     optim = AdamW(model.parameters(), lr=args.lr)
 
     # Calculate total training steps
     total_step = len(train_dataloader) * args.epochs
+    token_per_step = args.block_size * args.batch_size
 
-    # Start training
+    logger.add("file.log", format="{time} {level} {message}", level="INFO")
+    # Strat training
     for epoch in range(args.epochs):
         for step, batch in enumerate(train_dataloader, start=1):
-            #breakpoint()
-            start_time = time.perf_counter()
             input_ids = batch["input_ids"]
-            inputs, labels = input_ids, mask_pads(input_ids, tokenizer)
-            attn_mask = create_mask(inputs, tokenizer)
+            attn_mask = batch["attention_mask"]
+            labels = mask_pads(input_ids, attn_mask)
+            start_time = time.time()
             outputs = model(
                 input_ids.cuda(),
                 attention_mask=attn_mask.cuda(),
                 labels=labels.cuda(),
-                use_cache=False,            
+                use_cache=False,
             )
             loss = outputs[0]
             loss.backward()
             
             optim.step()
             model.zero_grad(set_to_none=True)
-
-            duration = time.perf_counter() - start_time
-            throughput = (args.batch_size * args.block_size) / duration
+            end_time = time.time()
+            
             if step % args.log_interval == 0:
-                logger.info(f"[Step {step+(epoch*len(train_dataloader))}/{total_step}] | Loss: {loss.item()} | Duration: {duration:.2f} | Throughput: {throughput:.2f} tokens/sec")
-    
+                logger.info(f"[Step {step+(epoch*len(train_dataloader))}/{total_step}] Loss: {loss.item()}, Throughput : {token_per_step / (end_time - start_time)}tokens/sec")
+
     print("Training Done")
     print("Saving Model...")
+    # Save trained model
+    model = model.to("cpu")
     model.save_pretrained(args.save_model_dir)
     tokenizer.save_pretrained(args.save_model_dir)
     print(f"Model saved in {args.save_model_dir}")
 
-if __name__ == "__main__":
 
+
+if __name__ == '__main__':
     args = parse_args()
     main(args)
+
+
