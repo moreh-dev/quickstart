@@ -6,7 +6,7 @@ from loguru import logger
 from argparse import ArgumentParser
 
 from transformers import AdamW, AutoTokenizer, AutoModelForCausalLM
-
+from dataset import load_dataset
 
 def parse_args():
     parser = ArgumentParser()

@@ -89,6 +89,10 @@ def main(args):
 
     dataset = load_dataset(args.dataset_name_or_path).with_format("torch")
     # Tokenize and prepare the input prompt
+    def create_prompt(prompt):
+        full_prompt = f"[INST] {prompt['instruction']} [/INST]\n{prompt['output']}</s>"
+        return full_prompt
+
     def preprocess(prompt):
         tokenized = tokenizer(
             create_prompt(prompt),
