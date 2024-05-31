@@ -6,32 +6,32 @@ from loguru import logger
 from argparse import ArgumentParser
 
 from transformers import AdamW, AutoTokenizer, AutoModelForCausalLM
-
+from datasets import load_dataset
 
 def parse_args():
     parser = ArgumentParser()
     parser.add_argument(
         "--model-name-or-path",
         type=str,
-        default="./mistral-7b",
+        default="mistralai/Mistral-7B-v0.1",
         help="Hugging Face Model",
     )
     parser.add_argument(
         "--epochs",
         type=int,
-        default=2,
+        default=3,
         help="Epochs",
     )
     parser.add_argument(
         "--batch-size",
         type=int,
-        default=256,
+        default=512,
         help="train batch size",
     )
     parser.add_argument(
         "--block-size",
         type=int,
-        default=2048,
+        default=1024,
         help="max input token length",
     )
     parser.add_argument(
@@ -43,7 +43,7 @@ def parse_args():
     parser.add_argument(
         "--log-interval",
         type=int,
-        default=1,
+        default=10,
         help="log interval",
     )
     parser.add_argument(
@@ -61,7 +61,7 @@ def parse_args():
     parser.add_argument(
         "--dataset-name-or-path",
         type=str,
-        default="./mistral_dataset.pt",
+        default="iamtarun/python_code_instructions_18k_alpaca",
         help="dataset name or path",
     )
 
@@ -71,19 +71,39 @@ def parse_args():
 
 
 def main(args):
-
-    # Load model and tokenizer
-    model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path)
-
-    # Apply Advanced Parallelization
     torch.moreh.option.enable_advanced_parallelization()
+    # Load model and tokenizer
+    print(f"Loading {args.model_name_or_path} Tokenizer...")
+    model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path)
+    tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path)
+    tokenizer.pad_token_id = tokenizer.eos_token_id
 
     # Prepare the model for training on Accelerator
     model.train()
     model.cuda()
 
-    # Apply preprocess function
-    dataset = torch.load(args.dataset_name_or_path)
+    print(f"Downloading {args.dataset_name_or_path} dataset...")
+    dataset = load_dataset(args.dataset_name_or_path).with_format("torch")
+    def create_prompt(prompt):
+        full_prompt = f"{prompt['prompt']}</s>"
+        return full_prompt
+
+    # Tokenize and prepare the input prompt
+    def preprocess(prompt):
+        tokenized = tokenizer(
+            create_prompt(prompt),
+            padding="max_length",
+            truncation=True,
+            max_length=args.block_size,
+        )
+
+        return {
+            "input_ids": tokenized["input_ids"],
+            "attention_mask": tokenized["attention_mask"],
+        }
+    print("Preprocessing dataset...")
+    # Preprocess dataset
+    dataset = dataset.map(preprocess, num_proc=16, load_from_cache_file=True)
 
     # Create a DataLoader for the training set
     train_dataloader = torch.utils.data.DataLoader(
@@ -134,6 +154,7 @@ def main(args):
     print("Training Done")
     print("Saving Model...")
     model.save_pretrained(args.save_dir)
+    tokenizer.save_pretrained(args.save_dir)
     print(f"Model saved in {args.save_dir}")
 
 if __name__ == "__main__":

@@ -29,7 +29,7 @@ def parse_args():
     parser.add_argument(
         "--model-name-or-path",
         type=str,
-        default="./llama3-70b",
+        default="meta-llama/Meta-Llama-3-8B",
         help="model name or path",
     )
     parser.add_argument(
@@ -53,7 +53,7 @@ def parse_args():
     parser.add_argument(
         "--dataset-name-or-path",
         type=str,
-        default="./llama3_dataset.pt",
+        default="cnn_dailymail",
         help="dataset name or path"
     )
     parser.add_argument(
@@ -80,15 +80,43 @@ def parse_args():
 
 
 def main(args):
+    torch.moreh.option.enable_advanced_parallelization()
     # Load base model and tokenizer
+    print(f"Load {args.model_name_or_path} model checkpoint and tokenizer...")
     tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path)
     model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path)
 
-    # Apply Advanced Parallelization
-    torch.moreh.option.enable_advanced_parallelization()
+    tokenizer.pad_token_id = 0
+
+    print(f"Downloading {args.dataset_name_or_path} dataset...")
+    if args.dataset_name_or_path == "cnn_dailymail":
+        dataset = load_dataset(args.dataset_name_or_path, "3.0.0").with_format("torch")
+    else:
+        dataset = load_dataset(args.dataset_name_or_path).with_format("torch")
 
 
-    dataset = torch.load(args.dataset_name_or_path)
+    # Construct a formatted prompt
+    def create_prompt(prompt):
+        full_prompt = f"[SUMMARIZE] {prompt['article']} [/SUMMARIZE]\n{prompt['highlights']}</s>"
+        return full_prompt
+
+    # Tokenize and prepare the input prompt
+    def preprocess(prompt):
+        input_ids = tokenizer(
+            create_prompt(prompt),
+            return_attention_mask=False,
+            return_token_type_ids=False,
+            padding="max_length",
+            truncation=True,
+            max_length=args.block_size,
+        )["input_ids"]
+
+        return {"input_ids": input_ids}
+
+    print("Preprocessing dataset...")
+    # Preprocess dataset
+    dataset = dataset.map(preprocess, num_proc=16, load_from_cache_file=True)
+
 
     # Create a DataLoader for the training set
     train_dataloader = torch.utils.data.DataLoader(
@@ -144,6 +172,7 @@ def main(args):
     print("Training Done")
     print("Saving Model...")
     model.save_pretrained(args.save_path)
+    tokenizer.save_pretrained(args.save_path)
     print(f"Model saved in {args.save_path}")
 
 if __name__ == "__main__":
