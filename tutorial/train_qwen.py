@@ -19,7 +19,7 @@ def parse_args():
     parser.add_argument(
         "--epochs",
         type=int,
-        default=10,
+        default=3,
         help="Epochs",
     )
     parser.add_argument(
@@ -43,7 +43,7 @@ def parse_args():
     parser.add_argument(
         "--log-interval",
         type=int,
-        default=1,
+        default=10,
         help="log interval",
     )
     parser.add_argument(

@@ -1,5 +1,3 @@
-import copy
-import time
 import torch
 
 from loguru import logger
@@ -31,7 +29,7 @@ def parse_args():
     parser.add_argument(
         "--epochs", 
         type=int, 
-        default=10, 
+        default=3, 
         help="num training epochs"
     )
     parser.add_argument(
@@ -61,7 +59,7 @@ def parse_args():
     parser.add_argument(
         "--log-interval", 
         type=int, 
-        default=2, 
+        default=10, 
         help="log interval"
     )
     parser.add_argument(
