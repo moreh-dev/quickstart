@@ -1,5 +1,4 @@
 accelerate==0.29.3
 datasets==2.19.0
 loguru==0.7.2
-torch==1.13.1+cu116.moreh24.2.0
 transformers==4.36.2

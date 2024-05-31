@@ -3,7 +3,7 @@ import torch
 
 from loguru import logger
 from argparse import ArgumentParser
-from transformers import AdamW, AutoModelForCausalLM
+from transformers import AdamW, AutoModelForCausalLM, AutoTokenizer
 import sys, os
 import time
 
@@ -35,12 +35,12 @@ def parse_args():
         "--model-name-or-path",
         type=str,
         help="model name or path",
-        default='baichuan-inc/Baichuan-13B-Base'
+        default='baichuan-inc/Baichuan2-13B-Base'
     )
     parser.add_argument(
         "--dataset-name-or-path",
         type=str,
-        default='./baichuan_dataset.pt',
+        default='bitext/Bitext-customer-support-llm-chatbot-training-dataset',
     )
     parser.add_argument(
         "--epochs", 
@@ -86,15 +86,30 @@ def main(args):
     
     # Apply Advanced Parallelization
     torch.moreh.option.enable_advanced_parallelization()
-    
+    print(f"Load {args.model_name_or_path} model checkpoint and tokenizer...") 
     # Load base model and tokenizer
-    model = BaichuanForCausalLM.from_pretrained(args.model_name_or_path, trust_remote_code=True)
-
+    model = BaichuanForCausalLM.from_pretrained(args.model_name_or_path, trust_remote_code=True, torch_dtype='auto')
+    tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path, trust_remote_code=True)
     # Prepare the model for training on Accelerator
     model.cuda()
     model.train()
 
-    dataset = torch.load(args.dataset_name_or_path)
+    print(f"Downloading {args.dataset_name_or_path} dataset...")
+    dataset = load_dataset(args.dataset_name_or_path).with_format("torch")
+    def preprocess(prompt):
+        tokenized = tokenizer(
+            create_prompt(prompt),
+            padding="max_length",
+            truncation=True,
+            max_length=args.block_size,
+        )
+        return {
+            "input_ids": tokenized["input_ids"],
+            "attention_mask": tokenized["attention_mask"],
+        }
+    print("Preprocessing dataset...")
+    dataset = dataset.map(preprocess, num_proc=16, load_from_cache_file=True)
+
     # Create a DataLoader for the training set
     train_dataloader = torch.utils.data.DataLoader(
         dataset["train"],
@@ -139,15 +154,13 @@ def main(args):
             
             if step % args.log_interval == 0:
                 logger.info(f"[Step {step+(epoch*len(train_dataloader))}/{total_step}] Loss: {loss.item()}, Throughput : {token_per_step / (end_time - start_time)}tokens/sec")
-            else:
-                logger.info(f"[Step {step+(epoch*len(train_dataloader))}/{total_step}] Throughput : {token_per_step / (end_time - start_time)}tokens/sec")
-    
 
     print("Training Done")
     print("Saving Model...")
     # Save trained model
     model = model.to("cpu")
     model.save_pretrained(args.save_model_dir)
+    tokenizer.save_pretrained(args.save_model_dir)
     print(f"Model saved in {args.save_model_dir}")
 
 
