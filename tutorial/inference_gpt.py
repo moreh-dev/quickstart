@@ -1,7 +1,6 @@
 import torch
-import sys, os
 import argparse
-from transformers import AutoModelForCausalLM, AdamW, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer
 import re
 QUERY = """Write a python program that counts all 'a's in a string. For example, if the string "Banana" is given, the program should return 3.
 """
@@ -11,7 +10,7 @@ def inference(args):
     # Max New Tokens for generating
     
     # Load trained model
-    model = AutoModelForCausalLM.from_pretrained(args.model_save_path, torch_dtype=torch.bfloat16)
+    model = AutoModelForCausalLM.from_pretrained(args.model_save_path)
     tokenizer = AutoTokenizer.from_pretrained(args.model)
     model.cuda()
     model.eval()
