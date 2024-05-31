@@ -5,7 +5,7 @@ import torch
 from loguru import logger
 from datasets import load_dataset
 from argparse import ArgumentParser
-from transformers import AdamW, LlamaForCausalLM, LlamaTokenizer, AutoTokenizer
+from transformers import AdamW, AutoModelForCausalLM, AutoTokenizer
 
 # Compose pad token mask
 def create_mask(input_ids, tokenizer):
@@ -81,7 +81,7 @@ def main(args):
     # Load base model and tokenizer
     print(f"Load {args.model_name_or_path} model checkpoint and tokenizer...")
     tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path)
-    model = LlamaForCausalLM.from_pretrained(args.model_name_or_path)
+    model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path)
 
     
     # Set pad token
