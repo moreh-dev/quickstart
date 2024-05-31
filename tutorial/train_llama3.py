@@ -5,7 +5,7 @@ from datasets import load_dataset
 from argparse import ArgumentParser
 from transformers import AdamW, AutoModelForCausalLM, AutoTokenizer
 import time
-
+import copy
 # Compose pad token mask
 def create_mask(input_ids, tokenizer):
     pad_token_ids = tokenizer.pad_token_id if tokenizer.pad_token_id is not None else tokenizer.eos_token_id
