@@ -167,10 +167,12 @@ cython_debug/
 
 # Image
 *.png
+!assets/*.png
 
 # Models
 *.safetensors
 *.json
+merges.txt
 
 # Notebooks
 *.ipynb
