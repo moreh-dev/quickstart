@@ -4,6 +4,7 @@ from loguru import logger
 from datasets import load_dataset
 from argparse import ArgumentParser
 from transformers import AdamW, AutoModelForCausalLM, AutoTokenizer
+import time
 
 # Compose pad token mask
 def create_mask(input_ids, tokenizer):
