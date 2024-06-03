@@ -6,6 +6,7 @@ from argparse import ArgumentParser
 from transformers import AdamW, AutoModelForCausalLM, AutoTokenizer
 import sys, os
 import time
+from datasets import load_dataset
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(sys.path[0]), 'model')))
 from modeling_baichuan import BaichuanForCausalLM
