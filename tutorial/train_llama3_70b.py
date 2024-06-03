@@ -29,7 +29,7 @@ def parse_args():
     parser.add_argument(
         "--model-name-or-path",
         type=str,
-        default="meta-llama/Meta-Llama-3-8B",
+        default="meta-llama/Meta-Llama-3-70B",
         help="model name or path",
     )
     parser.add_argument(
