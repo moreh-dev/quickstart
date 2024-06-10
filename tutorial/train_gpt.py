@@ -38,7 +38,7 @@ def parse_args():
     parser.add_argument(
         "--batch-size",
         type=int,
-        default=32,
+        default=16,
         help="train bacth size"
     )
     parser.add_argument(
