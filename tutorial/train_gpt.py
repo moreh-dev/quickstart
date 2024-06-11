@@ -22,7 +22,7 @@ def mask_pads(inputs, tokenizer, ignore_index=-100):
 
 # Arguments
 def parse_args():
-    parser = ArgumentParser(description="LLaMA2 FineTuning")
+    parser = ArgumentParser(description="GPT FineTuning")
     parser.add_argument(
         "--model-name-or-path",
         type=str,

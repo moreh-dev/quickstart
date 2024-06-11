@@ -9,7 +9,7 @@ from transformers import AdamW, AutoTokenizer, AutoModelForCausalLM
 from datasets import load_dataset
 
 def parse_args():
-    parser = ArgumentParser()
+    parser = ArgumentParser("Qwen Finetuning")
     parser.add_argument(
         "--model-name-or-path",
         type=str,
