@@ -10,24 +10,25 @@ from diffusers import DDPMScheduler
 # from sdxl_training.util import normalize_neg_one_to_one, unnormalize_zero_to_one
 from diffusers.utils import  convert_state_dict_to_diffusers
 from peft.utils import get_peft_model_state_dict
-
+from contextlib import nullcontext
 
 VAE_DOWNSCALE_FACTOR = 8
 
 class SDXL(nn.Module):
-    def __init__(self, model, config=None, variant=None, ignore_vae = False, dtype = torch.float32):
+    def __init__(self, model, config=None, variant=None, ignore_vae = False, dtype = torch.float32, train_text_encoder = None, prediction_type='epsilon'):
         super().__init__()
         self.dtype=dtype
-        pipe = StableDiffusionXLPipeline.from_pretrained(model, use_safetensors=True)
-        
-        self.model = model
-        self.unet = pipe.unet.to(dtype = self.dtype)
-        self.vae = pipe.vae.to(dtype = torch.float32)
-        self.text_encoder = pipe.text_encoder
-        self.text_encoder_2 = pipe.text_encoder_2
+        self.pipe = StableDiffusionXLPipeline.from_pretrained(model, use_safetensors=True)
+        self.unet = self.pipe.unet.to(dtype = self.dtype)
+        self.vae = self.pipe.vae.to(dtype = torch.float32)
+        self.text_encoder = self.pipe.text_encoder
+        self.text_encoder_2 = self.pipe.text_encoder_2
         self.image_processor = VaeImageProcessor(vae_scale_factor=VAE_DOWNSCALE_FACTOR)
-        self.scheduler = DDPMScheduler.from_config(pipe.scheduler.config)
+        self.scheduler = DDPMScheduler.from_config(self.pipe.scheduler.config)
+        if prediction_type is not None:
+            self.scheduler.register_to_config(prediction_type=prediction_type)
         self.config = config
+        self.train_text_encoder = train_text_encoder
         if config is not None:
             self.unet = UNet2DConditionModel.from_config(config)
         self.ignore_vae = ignore_vae
@@ -37,16 +38,18 @@ class SDXL(nn.Module):
             del self.vae
 
 
-    def forward(self, images, tokens=None, prediction_type='epsilon', snr_gamma=5):
+    def forward(self, images, tokens=None, snr_gamma=5):
         # encode images and texts
+        ctx = torch.no_grad() if self.train_text_encoder is None else nullcontext()
         if not self.ignore_vae:
             latents = self._encode_image(VaeImageProcessor.normalize(images)).to(self.dtype)
         else:
             b, _, h, w = images.shape
             latents = torch.rand((b, 4, h//VAE_DOWNSCALE_FACTOR, w//VAE_DOWNSCALE_FACTOR), dtype=self.dtype).cuda()
 
-        text_embeds, pooled_text_embeds = self._encode_prompt(tokens)
-        text_embeds, pooled_text_embeds = self._drop_text_emb(text_embeds), self._drop_text_emb(pooled_text_embeds)
+        with ctx:
+            text_embeds, pooled_text_embeds = self._encode_prompt(tokens)
+            text_embeds, pooled_text_embeds = self._drop_text_emb(text_embeds), self._drop_text_emb(pooled_text_embeds)
 
         # additional input conditions for SDXL
         b, c, h, w = latents.shape
@@ -67,9 +70,9 @@ class SDXL(nn.Module):
                             snr)
         mse_loss_weights[snr == 0] = 1.0
 
-        if prediction_type == 'epsilon':
+        if self.scheduler.config.prediction_type == 'epsilon':
             target = noise
-        elif prediction_type == 'velocity':
+        elif self.scheduler.config.prediction_type == "v_prediction":
             target = self.scheduler.get_velocity(latents, noise, timesteps)
         else:
             raise NotImplementedError
@@ -78,7 +81,7 @@ class SDXL(nn.Module):
         loss = loss.mean(dim=list(range(1, len(loss.shape)))) * mse_loss_weights
         loss = loss.mean()
         return [loss]
-
+    
     def _compute_snr(self, timesteps):
         alphas_cumprod = self.scheduler.alphas_cumprod
         sqrt_alphas_cumprod = alphas_cumprod**0.5
@@ -115,7 +118,6 @@ class SDXL(nn.Module):
     def _encode_image(self, images):
         return self.vae.encode(images).latent_dist.sample() * self.vae.config.scaling_factor
 
-    @torch.no_grad()
     def _encode_prompt(self, tokens, num_images_per_prompt=1, do_classifier_free_guidance=False):
         device = 'cuda'
 
@@ -175,7 +177,6 @@ class SDXL(nn.Module):
         add_time_ids = torch.tensor([add_time_ids], dtype=self.dtype)
         return add_time_ids.cuda()
 
-    @torch.no_grad()
     def _drop_text_emb(self, text_emb, drop_prob=0.1):
         """
 
@@ -195,18 +196,21 @@ class SDXL(nn.Module):
             masks = masks.unsqueeze(-1).to(self.dtype)
         return masks.cuda() * text_emb
 
-    def save_pretrained(self, save_path, is_lora):
+    def save_pretrained(self, save_path, is_lora, train_text_encoder = None):
         if is_lora:
             unet_lora_state_dict = convert_state_dict_to_diffusers(get_peft_model_state_dict(self.unet))
+            if train_text_encoder:
+                text_encoder_lora_layers = convert_state_dict_to_diffusers(get_peft_model_state_dict(self.text_encoder))
+                text_encoder_2_lora_layers = convert_state_dict_to_diffusers(get_peft_model_state_dict(self.text_encoder_2))
+            else:
+                text_encoder_lora_layers = None
+                text_encoder_2_lora_layers = None
             StableDiffusionXLPipeline.save_lora_weights(
                 save_directory=save_path,
                 unet_lora_layers=unet_lora_state_dict,
+                text_encoder_lora_layers=text_encoder_lora_layers,
+                text_encoder_2_lora_layers=text_encoder_2_lora_layers,
             )
 
         else:
-            pipeline = StableDiffusionXLPipeline.from_pretrained(
-                self.model,
-                vae=self.vae,
-                unet=self.unet,
-            )
-            pipeline.save_pretrained(save_path)
+            self.pipe.save_pretrained(save_path)
