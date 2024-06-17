@@ -18,7 +18,7 @@ from model.modeling_sdxl import SDXL
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="SDXL Training Script")
+    parser = argparse.ArgumentParser(description="SDXL FineTuning")
     parser.add_argument(
         "--model-name-or-path",
         type=str,

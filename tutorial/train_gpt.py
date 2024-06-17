@@ -22,7 +22,7 @@ def mask_pads(inputs, tokenizer, ignore_index=-100):
 
 # Arguments
 def parse_args():
-    parser = ArgumentParser(description="LLaMA2 FineTuning")
+    parser = ArgumentParser(description="GPT FineTuning")
     parser.add_argument(
         "--model-name-or-path",
         type=str,
@@ -38,7 +38,7 @@ def parse_args():
     parser.add_argument(
         "--batch-size",
         type=int,
-        default=32,
+        default=16,
         help="train bacth size"
     )
     parser.add_argument(
