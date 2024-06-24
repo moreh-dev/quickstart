@@ -6,6 +6,8 @@ from argparse import ArgumentParser
 from transformers import AdamW, AutoModelForCausalLM, AutoTokenizer
 import time
 import copy
+from peft import get_peft_model, LoraConfig
+
 # Compose pad token mask
 def create_mask(input_ids, tokenizer):
     pad_token_ids = tokenizer.pad_token_id if tokenizer.pad_token_id is not None else tokenizer.eos_token_id
@@ -17,6 +19,20 @@ def mask_pads(inputs, tokenizer, ignore_index=-100):
     labels = copy.deepcopy(inputs)
     labels[~idx_mask.bool()] = ignore_index
     return labels
+
+def print_trainable_parameters(model):
+    """
+    Prints the number of trainable parameters in the model.
+    """
+    trainable_params = 0
+    all_param = 0
+    for _, param in model.named_parameters():
+        all_param += param.numel()
+        if param.requires_grad:
+            trainable_params += param.numel()
+    print(
+        f"trainable params: {trainable_params} || all params: {all_param} || trainable%: {100 * trainable_params / all_param}"
+    )
 
 # Arguments    
 def parse_args():
@@ -64,10 +80,34 @@ def parse_args():
         help="log interval"
     )
     parser.add_argument(
+        "--eval-step",
+        type=int,
+        default=100,
+    )
+    parser.add_argument(
         "--save-model-dir", 
         type=str, 
         default="./llama3_summarization", 
         help="path to save model"
+    )
+    parser.add_argument(
+        "--use-lora",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--lora-alpha",
+        type=int,
+        default=16,
+    )
+    parser.add_argument(
+        "--lora-dropout",
+        type=float,
+        default=0.05,
+    )
+    parser.add_argument(
+        "--lora-r",
+        type=int,
+        default=16,
     )
     args = parser.parse_args()
 
@@ -86,6 +126,17 @@ def main(args):
     # Set pad token
     tokenizer.pad_token_id = 0
     
+    if args.use_lora:
+        config = LoraConfig(
+            lora_alpha=args.lora_alpha,
+            lora_dropout=args.lora_dropout,
+            r=args.lora_r,
+            target_modules=["q_proj", "v_proj"],
+            bias="none",
+            task_type="CAUSAL_LM",
+            )
+        model = get_peft_model(model, config)
+        print_trainable_parameters(model)
     # Prepare the model for training on Accelerator
     model.cuda()
     model.train()
@@ -136,9 +187,8 @@ def main(args):
 
     # Start training
     for epoch in range(args.epochs):
+        st = time.time()
         for step, batch in enumerate(train_dataloader, start=1):
-            #breakpoint()
-            start_time = time.perf_counter()
             input_ids = batch["input_ids"]
             inputs, labels = input_ids, mask_pads(input_ids, tokenizer)
             attn_mask = create_mask(inputs, tokenizer)
@@ -154,10 +204,80 @@ def main(args):
             optim.step()
             model.zero_grad(set_to_none=True)
 
-            duration = time.perf_counter() - start_time
-            throughput = (args.batch_size * args.block_size) / duration
+            # Logging
+            if step == 1:
+                loss.item()
+                logger.info(f"Model load and warmup done. Duration: {(time.time() - st):.2f}")
+                st = time.time()
+                continue
             if step % args.log_interval == 0:
-                logger.info(f"[Step {step+(epoch*len(train_dataloader))}/{total_step}] | Loss: {loss.item()} | Duration: {duration:.2f} | Throughput: {throughput:.2f} tokens/sec")
+                if step == args.log_interval: step_interval = args.log_interval - 1
+                else : step_interval = args.log_interval
+                logger.info(f"[Step {step+(epoch*len(train_dataloader))}/{total_step}] | Loss: {loss.item()} | Duration: {(time.time() - st):.2f} | {((step_interval * args.batch_size)/(time.time() - st)):.2f} | Throughput: {((step_interval * args.batch_size * args.block_size)/(time.time() - st)):.2f} tokens/sec")
+                st = time.time()
+
+            if step % args.eval_step == 0:
+                # Evaluation
+                with torch.no_grad():
+                    logger.info("[START EPOCH EVAL]")
+                    model.eval()
+                    ev_st = time.time()
+                    eval_loss = torch.tensor([0], device='cuda')
+                    total_correct = torch.tensor([0], device='cuda')
+                    for e_step, e_batch in enumerate(eval_dataloader, start=1):
+                        e_input_ids = e_batch["input_ids"]
+                        e_inputs, e_labels = e_input_ids, mask_pads(e_input_ids, tokenizer)
+                        e_attn_mask = create_mask(e_inputs, tokenizer)
+
+                        if e_step % 10 == 0:
+                            logger.info(f"EVAL STEP: {e_step} / {len(eval_dataloader)}")
+
+                        e_outputs = model(
+                            e_inputs.cuda(),
+                            attention_mask=e_attn_mask.cuda(),
+                            labels=e_labels.cuda(),
+                            use_cache=False,
+                        )
+                        eval_loss += e_outputs[0]
+                    logger.info(f"EVAL STEP: {e_step} / {len(eval_dataloader)}")
+                    logger.info(f"Eval Loss: {eval_loss.item()/len(eval_dataloader)} | ELAPSED EVAL TIME: {(time.time() - ev_st)} sec")
+                model.train()
+                st = time.time()
+
+        # Evaluation
+        with torch.no_grad():
+            logger.info("[START EPOCH EVAL]")
+            model.eval()
+            ev_st = time.time()
+            eval_loss = torch.tensor([0], device='cuda')
+            total_correct = torch.tensor([0], device='cuda')
+            for e_step, e_batch in enumerate(eval_dataloader, start=1):
+                e_input_ids = e_batch["input_ids"]
+                e_inputs, e_labels = e_input_ids, mask_pads(e_input_ids, tokenizer)
+                e_attn_mask = create_mask(e_inputs, tokenizer)
+
+                if e_step % 10 == 0:
+                    logger.info(f"EVAL STEP: {e_step} / {len(eval_dataloader)}")
+                e_outputs = model(
+                    e_inputs.cuda(),
+                    attention_mask=e_attn_mask.cuda(),
+                    labels=e_labels.cuda(),
+                    use_cache=False,
+                )
+                eval_loss += e_outputs[0]
+            logger.info(f"EVAL STEP: {e_step} / {len(eval_dataloader)}")
+            logger.info(f"Eval Loss: {eval_loss.item()/len(eval_dataloader)} | ELAPSED EVAL TIME: {(time.time() - ev_st)} sec")
+        model.train()
+        st = time.time()
+
+
+    print("Training Done")
+    print("Saving Model...")
+    model.save_pretrained(args.save_model_dir)
+    tokenizer.save_pretrained(args.save_model_dir)
+    if args.use_lora:
+        model.save_adpater(args.save_model_dir, "default")
+
     print("Training Done")
     print("Saving Model...")
     model.save_pretrained(args.save_model_dir)
