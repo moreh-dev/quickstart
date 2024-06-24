@@ -8,6 +8,7 @@ import sys, os
 import time
 from datasets import load_dataset
 
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(sys.path[0]), 'model')))
 from modeling_baichuan import BaichuanForCausalLM
 
@@ -27,6 +28,22 @@ def mask_pads(inputs, tokenizer, ignore_index = -100):
 def create_prompt(prompt):
     full_prompt = f"[INST] {prompt['instruction']} \n Category is {prompt['category']} \n Intent is {prompt['intent']} [/INST]\n{prompt['response']}"
     return full_prompt
+
+
+def print_trainable_parameters(model):
+    """
+    Prints the number of trainable parameters in the model.
+    """
+    trainable_params = 0
+    all_param = 0
+    for _, param in model.named_parameters():
+        all_param += param.numel()
+        if param.requires_grad:
+            trainable_params += param.numel()
+    print(
+        f"trainable params: {trainable_params} || all params: {all_param} || trainable%: {100 * trainable_params / all_param}"
+    )
+
 
 
 # Arguments    
@@ -79,6 +96,10 @@ def parse_args():
         default="./baichuan_code_generation", 
         help="path to save model"
     )
+    parser.add_argument(
+        "--lora", 
+        action="store_true"
+    )
     args = parser.parse_args()
     return args
 
@@ -89,9 +110,22 @@ def main(args):
     torch.moreh.option.enable_advanced_parallelization()
     print(f"Load {args.model_name_or_path} model checkpoint and tokenizer...") 
     # Load base model and tokenizer
-    model = BaichuanForCausalLM.from_pretrained(args.model_name_or_path, trust_remote_code=True, torch_dtype='auto')
+    model = BaichuanForCausalLM.from_pretrained(args.model_name_or_path, trust_remote_code=True, dtype = torch.bfloat16)
     tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path, trust_remote_code=True)
     # Prepare the model for training on Accelerator
+    if args.lora:
+        from peft import get_peft_model, LoraConfig,TaskType
+        peft_config = LoraConfig(
+            task_type=TaskType.CAUSAL_LM,
+            target_modules=["W_pack"],
+            inference_mode=False,
+            r=1,
+            lora_alpha=32,
+            lora_dropout=0.1,
+        )
+        model.enable_input_require_grads()
+        model = get_peft_model(model, peft_config)
+    print_trainable_parameters(model)
     model.cuda()
     model.train()
 
@@ -135,11 +169,12 @@ def main(args):
     logger.add("file.log", format="{time} {level} {message}", level="INFO")
     # Strat training
     for epoch in range(args.epochs):
+        st = time.time()
+        cnt = 0
         for step, batch in enumerate(train_dataloader, start=1):
             input_ids = batch["input_ids"]
             attn_mask = batch["attention_mask"]
             labels = mask_pads(input_ids, attn_mask)
-            start_time = time.time()
             outputs = model(
                 input_ids.cuda(),
                 attention_mask=attn_mask.cuda(),
@@ -151,10 +186,23 @@ def main(args):
             
             optim.step()
             model.zero_grad(set_to_none=True)
-            end_time = time.time()
-            
+            cnt += 1
+            if step == 1:
+                logger.info(
+                    f"Model prepare and warmup Done. [Step {step+(epoch*len(train_dataloader))}/{total_step}] | Loss: {loss.item()} | Duration: {(time.time() - st):.2f}"
+                )
+                st = time.time()
+                cnt = 0
+                continue
             if step % args.log_interval == 0:
-                logger.info(f"[Step {step+(epoch*len(train_dataloader))}/{total_step}] Loss: {loss.item()}, Throughput : {token_per_step / (end_time - start_time)}tokens/sec")
+                logger.info(
+                    f"[Step {step+(epoch*len(train_dataloader))}/{total_step}] | Loss: {loss.item()} |"
+                )
+                logger.info(
+                    f"Duration: {(time.time() - st):.2f} | Throughput: {((cnt * args.batch_size * args.block_size)/(time.time() - st)):.2f} tokens/sec"
+                )
+                st = time.time()
+                cnt = 0
 
     print("Training Done")
     print("Saving Model...")

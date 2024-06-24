@@ -8,6 +8,22 @@ from argparse import ArgumentParser
 from transformers import AdamW, AutoTokenizer, AutoModelForCausalLM
 from datasets import load_dataset
 
+
+def print_trainable_parameters(model):
+    """
+    Prints the number of trainable parameters in the model.
+    """
+    trainable_params = 0
+    all_param = 0
+    for _, param in model.named_parameters():
+        all_param += param.numel()
+        if param.requires_grad:
+            trainable_params += param.numel()
+    print(
+        f"trainable params: {trainable_params} || all params: {all_param} || trainable%: {100 * trainable_params / all_param}"
+    )
+
+
 def parse_args():
     parser = ArgumentParser("Qwen Finetuning")
     parser.add_argument(
@@ -64,7 +80,10 @@ def parse_args():
         default="iamtarun/python_code_instructions_18k_alpaca",
         help="dataset name or path",
     )
-
+    parser.add_argument(
+        "--lora", 
+        action="store_true"
+    )
     args = parser.parse_args()
 
     return args
@@ -77,7 +96,19 @@ def main(args):
     model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path)
     tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path)
     tokenizer.pad_token_id = tokenizer.eos_token_id
+    if args.lora:
+        from peft import get_peft_model, LoraConfig
+        config = LoraConfig(
+            lora_alpha=16,
+            lora_dropout=0.1,
+            r=64,
+            target_modules=["q_proj", "v_proj"],
+            bias="none",
+            task_type="CAUSAL_LM",
+        )
+        model = get_peft_model(model, config)
 
+    print_trainable_parameters(model)
     # Prepare the model for training on Accelerator
     model.train()
     model.cuda()
@@ -133,8 +164,9 @@ def main(args):
 
     # Start training
     for epoch in range(args.epochs):
-        for i, batch in enumerate(train_dataloader, start=1):
-            start_time = time.perf_counter()
+        st = time.time()
+        cnt = 0
+        for step, batch in enumerate(train_dataloader, start=1):
             input_ids = batch["input_ids"]
             attn_mask = batch["attention_mask"]
             labels = mask_pads(input_ids, attn_mask)
@@ -150,10 +182,23 @@ def main(args):
             optim.step()
             model.zero_grad(set_to_none=True)
 
-            duration = time.perf_counter() - start_time
-            throughput = (args.batch_size * args.block_size) / duration
-            if i % args.log_interval == 0:
-                logger.info(f"[Step {i+(epoch*len(train_dataloader))}/{total_step}] | Loss: {loss.item()} | Duration: {duration:.2f} | Throughput: {throughput:.2f} tokens/sec")
+            cnt += 1
+            if step == 1:
+                logger.info(
+                    f"Model prepare and warmup Done. [Step {step+(epoch*len(train_dataloader))}/{total_step}] | Loss: {loss.item()} | Duration: {(time.time() - st):.2f}"
+                )
+                st = time.time()
+                cnt = 0
+                continue
+            if step % args.log_interval == 0:
+                logger.info(
+                    f"[Step {step+(epoch*len(train_dataloader))}/{total_step}] | Loss: {loss.item()} |"
+                )
+                logger.info(
+                    f"Duration: {(time.time() - st):.2f} | Throughput: {((cnt * args.batch_size * args.block_size)/(time.time() - st)):.2f} tokens/sec"
+                )
+                st = time.time()
+                cnt = 0
 
     # Save trained model
     print("Training Done")
