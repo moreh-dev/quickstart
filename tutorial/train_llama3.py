@@ -114,6 +114,29 @@ def parse_args():
 
     return args
 
+def eval(model, eval_dataloader, tokenizer):
+    with torch.no_grad():
+        logger.info("[START EPOCH EVAL]")
+        model.eval()
+        ev_st = time.time()
+        eval_loss = torch.tensor([0], device='cuda')
+        total_correct = torch.tensor([0], device='cuda')
+        for e_step, e_batch in enumerate(eval_dataloader, start=1):
+            e_input_ids = e_batch["input_ids"]
+            e_inputs, e_labels = e_input_ids, mask_pads(e_input_ids, tokenizer)
+            e_attn_mask = create_mask(e_inputs, tokenizer)
+
+            if e_step % 10 == 0:
+                logger.info(f"EVAL STEP: {e_step} / {len(eval_dataloader)}")
+            e_outputs = model(
+                e_inputs.cuda(),
+                attention_mask=e_attn_mask.cuda(),
+                labels=e_labels.cuda(),
+                use_cache=False,
+            )
+            eval_loss += e_outputs[0]
+        logger.info(f"EVAL STEP: {e_step} / {len(eval_dataloader)}")
+        logger.info(f"Eval Loss: {eval_loss.item()/len(eval_dataloader)} | ELAPSED EVAL TIME: {(time.time() - ev_st)} sec")
 
 def main(args):
     torch.moreh.option.enable_advanced_parallelization()
@@ -122,7 +145,6 @@ def main(args):
     tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path)
     model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path)
 
-    
     # Set pad token
     tokenizer.pad_token_id = 0
     
@@ -136,7 +158,7 @@ def main(args):
             task_type="CAUSAL_LM",
             )
         model = get_peft_model(model, config)
-        print_trainable_parameters(model)
+    print_trainable_parameters(model)
     # Prepare the model for training on Accelerator
     model.cuda()
     model.train()
@@ -147,7 +169,9 @@ def main(args):
         dataset = load_dataset(args.dataset_name_or_path, "3.0.0").with_format("torch")
     else:
         dataset = load_dataset(args.dataset_name_or_path).with_format("torch")
-
+        if "validation" not in dataset:
+            dataset["train"] = load_dataset(args.dataset_name_or_path,  split="train[:80%]").with_format("torch")
+            dataset["validation"] = load_dataset(args.dataset_name_or_path,  split="train[80%:]").with_format("torch")
 
     # Construct a formatted prompt
     def create_prompt(prompt):
@@ -174,6 +198,13 @@ def main(args):
     # Create a DataLoader for the training set
     train_dataloader = torch.utils.data.DataLoader(
         dataset["train"],
+        batch_size=args.batch_size,
+        shuffle=True,
+        drop_last=True,
+    )
+    # Create a DataLoader for the validation set
+    eval_dataloader = torch.utils.data.DataLoader(
+        dataset["validation"],
         batch_size=args.batch_size,
         shuffle=True,
         drop_last=True,
@@ -218,55 +249,12 @@ def main(args):
 
             if step % args.eval_step == 0:
                 # Evaluation
-                with torch.no_grad():
-                    logger.info("[START EPOCH EVAL]")
-                    model.eval()
-                    ev_st = time.time()
-                    eval_loss = torch.tensor([0], device='cuda')
-                    total_correct = torch.tensor([0], device='cuda')
-                    for e_step, e_batch in enumerate(eval_dataloader, start=1):
-                        e_input_ids = e_batch["input_ids"]
-                        e_inputs, e_labels = e_input_ids, mask_pads(e_input_ids, tokenizer)
-                        e_attn_mask = create_mask(e_inputs, tokenizer)
-
-                        if e_step % 10 == 0:
-                            logger.info(f"EVAL STEP: {e_step} / {len(eval_dataloader)}")
-
-                        e_outputs = model(
-                            e_inputs.cuda(),
-                            attention_mask=e_attn_mask.cuda(),
-                            labels=e_labels.cuda(),
-                            use_cache=False,
-                        )
-                        eval_loss += e_outputs[0]
-                    logger.info(f"EVAL STEP: {e_step} / {len(eval_dataloader)}")
-                    logger.info(f"Eval Loss: {eval_loss.item()/len(eval_dataloader)} | ELAPSED EVAL TIME: {(time.time() - ev_st)} sec")
+                eval(model, eval_dataloader, tokenizer)
                 model.train()
                 st = time.time()
 
         # Evaluation
-        with torch.no_grad():
-            logger.info("[START EPOCH EVAL]")
-            model.eval()
-            ev_st = time.time()
-            eval_loss = torch.tensor([0], device='cuda')
-            total_correct = torch.tensor([0], device='cuda')
-            for e_step, e_batch in enumerate(eval_dataloader, start=1):
-                e_input_ids = e_batch["input_ids"]
-                e_inputs, e_labels = e_input_ids, mask_pads(e_input_ids, tokenizer)
-                e_attn_mask = create_mask(e_inputs, tokenizer)
-
-                if e_step % 10 == 0:
-                    logger.info(f"EVAL STEP: {e_step} / {len(eval_dataloader)}")
-                e_outputs = model(
-                    e_inputs.cuda(),
-                    attention_mask=e_attn_mask.cuda(),
-                    labels=e_labels.cuda(),
-                    use_cache=False,
-                )
-                eval_loss += e_outputs[0]
-            logger.info(f"EVAL STEP: {e_step} / {len(eval_dataloader)}")
-            logger.info(f"Eval Loss: {eval_loss.item()/len(eval_dataloader)} | ELAPSED EVAL TIME: {(time.time() - ev_st)} sec")
+        eval(model, eval_dataloader, tokenizer)
         model.train()
         st = time.time()
 
@@ -278,11 +266,6 @@ def main(args):
     if args.use_lora:
         model.save_adpater(args.save_model_dir, "default")
 
-    print("Training Done")
-    print("Saving Model...")
-    model.save_pretrained(args.save_model_dir)
-    tokenizer.save_pretrained(args.save_model_dir)
-    print(f"Model saved in {args.save_model_dir}")
 
 if __name__ == "__main__":
 
