@@ -7,7 +7,9 @@
 - [Fine-tuning](#fine-tuning)
   - [Activate Moreh Advanced Parallelization(AP)](#activate-moreh-advanced-parallelizationap)
   - [LLM Information](#llm-information)
-    - [Training](#training)
+  - [Training](#training)
+    - [Full Fine-tuning](#full-fine-tuning)
+    - [LoRA Fine-tuning](#lora-fine-tuning)
     - [Inference](#inference)
   - [Stable Diffusion XL](#stable-diffusion-xl)
     - [Training](#training-1)
@@ -69,13 +71,16 @@ Information about the models currently supported by this repository, along with 
 | [Llama2 7B](https://huggingface.co/meta-llama/Meta-Llama-3-70B)       | Text Summarization | `tutorial/train_llama2.py`     | [cnn_dailymail](https://huggingface.co/datasets/abisee/cnn_dailymail)                                                                                      |
 | [Qwen1.5 7B](https://huggingface.co/Qwen/Qwen1.5-7B)     | Code Generation    | `tutorial/train_qwen.py`       | [iamtarun/python_code_instructions_18k_alpaca](https://huggingface.co/datasets/iamtarun/python_code_instructions_18k_alpaca)                               |
 | [Mistral v0.1 7B ](https://huggingface.co/mistralai/Mistral-7B-v0.1)      | Code Generation    | `tutorial/train_mistral.py`    | [iamtarun/python_code_instructions_18k_alpaca](https://huggingface.co/datasets/iamtarun/python_code_instructions_18k_alpaca)                               |
-| [Cerebras GPT 13B](https://huggingface.co/cerebras/Cerebras-GPT-13B) | Code Generation    | `tutorial/train_gpt.py`        | [mlabonne/Evol-Instruct-Python-26k](https://huggingface.co/datasets/mlabonne/Evol-Instruct-Python-26k)                                                     |
+| [OPT 13B](https://huggingface.co/facebook/opt-13b) | Code Generation    | `tutorial/train_opt.py`        | [mlabonne/Evol-Instruct-Python-26k](https://huggingface.co/datasets/mlabonne/Evol-Instruct-Python-26k)                                                     |
 | [Baichuan2 13B](https://huggingface.co/baichuan-inc/Baichuan2-13B-Base)    | Chatbot            | `tutorial/train_baichuan2_13b.py`   | [bitext/Bitext-customer-support-llm-chatbot-training-dataset](https://huggingface.co/datasets/bitext/Bitext-customer-support-llm-chatbot-training-dataset) |
 
-### Training
+## Training
 
-Run the training script to fine-tune the model. For example, to train the Llama3 8B model:
 
+
+### Full Fine-tuning
+
+ Run the training script to fully fine-tune the model. For example, if you want to fine-tune the llama-3 8B model, 
 ```bash 
 python tutorial/train_llama3.py \
   --epochs 1  \
@@ -88,6 +93,26 @@ python tutorial/train_llama3.py \
   --log-interval 1
 ```
 
+### LoRA Fine-tuning
+
+To train the LoRA adapter only, you can give a `--use-lora` argument with LoRA config parameters. 
+
+```bash 
+python tutorial/train_llama3.py \
+  --epochs 1  \
+  --batch-size 256 \
+  --block-size 1024 \
+  --max_train_steps=15000 \
+  --lr=0.00001 \
+  --save-dir=${SAVE_DIR_PATH} \
+  --ignore-index -100 \
+  --log-interval 1 \
+  --use-lora \
+  --lora-r 64 \
+  --lora-alpha 16 \
+  --lora-dropout 0.1 \
+```
+
 
 ### Inference
 | **Baseline Model** | **Infernece Script**             |
@@ -96,7 +121,7 @@ python tutorial/train_llama3.py \
 | Llama2 7B          | `tutorial/inference_llama2.py`   |
 | Qwen1.5 7B         | `tutorial/inference_qwen.py`     |
 | Mistral 7B         | `tutorial/inference_mistral.py`  |
-| Cerebras GPT 13B   | `tutorial/inference_gpt.py`      |
+| OPT 13B            | `tutorial/inference_opt.py`      |
 | Baichuan2 13B      | `tutorial/inference_baichuan.py` |
 
 Perform inference by running the inference script for each model. For example, to proceed with inference on fine-tuned Llama3 models:
@@ -104,6 +129,14 @@ Perform inference by running the inference script for each model. For example, t
 ```bash 
 python tutorial/inference_llama3.py \
   --model-name-or-path=${SAVE_DIR_PATH}
+```
+
+If you want to perform inference with LoRA weights, add `--use-lora` argument to the inference script/
+
+```bash 
+python tutorial/inference_llama3.py \
+  --model-name-or-path=${SAVE_DIR_PATH} \
+  --use-lora
 ```
 
 ```bash

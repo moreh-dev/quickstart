@@ -89,7 +89,7 @@ def parse_args():
     parser.add_argument(
         "--save-model-dir",
         type=str,
-        default="./gpt_checkpoint",
+        default="./opt_checkpoint",
         help="path to save model"
     )
     parser.add_argument(

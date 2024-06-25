@@ -256,8 +256,6 @@ def main(args):
     print("Saving Model...")
     model.save_pretrained(args.save_dir)
     tokenizer.save_pretrained(args.save_dir)
-    if args.use_lora:
-        model.save_adpater(args.save_model_dir, "default")
     print(f"Model saved in {args.save_dir}")
 
 if __name__ == "__main__":

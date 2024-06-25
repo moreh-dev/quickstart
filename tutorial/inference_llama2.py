@@ -7,17 +7,27 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 
 def parse_args():
     parser = ArgumentParser()
+    parser.add_argument("--max-length", type = int, default = 512)
     parser.add_argument(
         "--model-name-or-path",
         type=str,
         default="./llama2_summarization"
     )
+    parser.add_argument("--use-lora", action = "store_true")
     return parser.parse_args()
 
 def main(args):
     # Load trained model
-    model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path)
-    tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path)
+    if not args.use_lora:
+        model = AutoModelForCausalLM.from_pretrained(args.model_save_path)
+        tokenizer = AutoTokenizer.from_pretrained(args.model_save_path)
+    else:
+        from peft import PeftModel, PeftConfig
+        config = PeftConfig.from_pretrained(args.model_save_path)
+        model = AutoModelForCausalLM.from_pretrained(config.base_model_name_or_path)
+        tokenizer = AutoTokenizer.from_pretrained(config.base_model_name_or_path)
+        model = PeftModel.from_pretrained(model, args.model_save_path)
+        model = model.merge_and_unload()
     model.eval()
     model.cuda()
 
@@ -28,7 +38,7 @@ def main(args):
 
     with torch.no_grad():
         # Generate python function
-        output = model.generate(generated_text_ids, max_new_tokens=512)
+        output = model.generate(generated_text_ids, max_new_tokens=args.max_length)
 
         # Decode generated tokens
         generated_text = tokenizer.decode(output[0], skip_special_tokens=True)
