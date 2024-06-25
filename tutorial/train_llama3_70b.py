@@ -169,8 +169,8 @@ def main(args):
     else:
         dataset = load_dataset(args.dataset_name_or_path).with_format("torch")
         if "validation" not in dataset:
-            dataset["train"] = load_dataset(args.dataset_name_or_path,  split="train[:80%]").with_format("torch")
-            dataset["validation"] = load_dataset(args.dataset_name_or_path,  split="train[80%:]").with_format("torch")
+            dataset["train"] = load_dataset(args.dataset_name_or_path,  split="train[:95%]").with_format("torch")
+            dataset["validation"] = load_dataset(args.dataset_name_or_path,  split="train[95%:]").with_format("torch")
 
     # Construct a formatted prompt
     def create_prompt(prompt):
