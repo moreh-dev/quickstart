@@ -6,6 +6,8 @@ from loguru import logger
 from datasets import load_dataset
 from argparse import ArgumentParser
 from transformers import AdamW, AutoModelForCausalLM, AutoTokenizer
+import torch
+
 
 def print_trainable_parameters(model):
     """
