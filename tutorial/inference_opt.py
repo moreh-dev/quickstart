@@ -20,14 +20,14 @@ def parse_args():
 def main(args): 
     # Load trained model    
     if not args.use_lora:
-        model = AutoModelForCausalLM.from_pretrained(args.model_save_path)
-        tokenizer = AutoTokenizer.from_pretrained(args.model_save_path)
+        model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path)
+        tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path)
     else:
         from peft import PeftModel, PeftConfig
-        config = PeftConfig.from_pretrained(args.model_save_path)
+        config = PeftConfig.from_pretrained(args.model_name_or_path)
         model = AutoModelForCausalLM.from_pretrained(config.base_model_name_or_path)
         tokenizer = AutoTokenizer.from_pretrained(config.base_model_name_or_path)
-        model = PeftModel.from_pretrained(model, args.model_save_path)
+        model = PeftModel.from_pretrained(model, args.model_name_or_path)
         model = model.merge_and_unload()
 
     model.cuda()
@@ -35,13 +35,13 @@ def main(args):
 
     # Prepare test prompt
     input_text = f"[INST] {QUERY} [/INST]"
-    input_ids = tokenizer(input_text, return_tensors="pt").input_ids
-    generated_text_ids = input_ids.cuda()
+    tokenized_input = tokenizer(input_text, return_tensors="pt")
+    input_ids = tokenized_input['input_ids'].to('cuda')
+    attention_mask = tokenized_input['attention_mask'].to('cuda')
 
     with torch.no_grad():
         # Generate python function
-        output = model.generate(generated_text_ids, max_new_tokens=args.max_length)
-
+        output = model.generate(input_ids=input_ids, attention_mask=attention_mask, max_new_tokens=args.max_length, pad_token_id=tokenizer.eos_token_id)
         # Decode generated tokens
         generated_text = tokenizer.decode(output[0], skip_special_tokens=True)
         answer = re.findall(r"\[INST\][\S\s]*\[\/INST\]([\S\s]*)", generated_text)[0]

@@ -172,6 +172,10 @@ cython_debug/
 # Models
 *.safetensors
 *.json
+*.model
+*.bin
+*.md
+!./README.md
 merges.txt
 
 # Notebooks
@@ -179,3 +183,4 @@ merges.txt
 
 #checkpoints
 *_checkpoint
+

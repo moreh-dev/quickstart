@@ -18,14 +18,14 @@ def parse_args():
 def main(args):
     # Load trained model
     if not args.use_lora:
-        model = AutoModelForCausalLM.from_pretrained(args.model_save_path)
-        tokenizer = AutoTokenizer.from_pretrained(args.model_save_path)
+        model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path)
+        tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path)
     else:
         from peft import PeftModel, PeftConfig
-        config = PeftConfig.from_pretrained(args.model_save_path)
+        config = PeftConfig.from_pretrained(args.model_name_or_path)
         model = AutoModelForCausalLM.from_pretrained(config.base_model_name_or_path)
         tokenizer = AutoTokenizer.from_pretrained(config.base_model_name_or_path)
-        model = PeftModel.from_pretrained(model, args.model_save_path)
+        model = PeftModel.from_pretrained(model, args.model_name_or_path)
         model = model.merge_and_unload()
     model.eval()
     model.cuda()
