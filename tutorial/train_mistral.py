@@ -1,12 +1,13 @@
+from argparse import ArgumentParser
 import copy
 import time
-import torch
 
-from loguru import logger
-from argparse import ArgumentParser
-
-from transformers import AdamW, AutoTokenizer, AutoModelForCausalLM
 from datasets import load_dataset
+from loguru import logger
+import torch
+from transformers import AdamW
+from transformers import AutoModelForCausalLM
+from transformers import AutoTokenizer
 
 
 def print_trainable_parameters(model):
@@ -121,12 +122,12 @@ def eval(model, eval_dataloader, args):
         logger.info("[START EPOCH EVAL]")
         model.eval()
         ev_st = time.time()
-        eval_loss = torch.tensor([0], device='cuda')
-        total_correct = torch.tensor([0], device='cuda')
+        eval_loss = torch.tensor([0], device="cuda")
+        total_correct = torch.tensor([0], device="cuda")
         for e_step, e_batch in enumerate(eval_dataloader, start=1):
             e_input_ids = e_batch["input_ids"]
             e_attn_mask = e_batch["attention_mask"]
-            e_labels = mask_pads(e_input_ids, e_attn_mask, args.ignore_index )
+            e_labels = mask_pads(e_input_ids, e_attn_mask, args.ignore_index)
 
             if e_step % 10 == 0:
                 logger.info(f"EVAL STEP: {e_step} / {len(eval_dataloader)}")
@@ -138,7 +139,10 @@ def eval(model, eval_dataloader, args):
             )
             eval_loss += e_outputs[0]
         logger.info(f"EVAL STEP: {e_step} / {len(eval_dataloader)}")
-        logger.info(f"Eval Loss: {eval_loss.item()/len(eval_dataloader)} | ELAPSED EVAL TIME: {(time.time() - ev_st)} sec")
+        logger.info(
+            f"Eval Loss: {eval_loss.item()/len(eval_dataloader)} | ELAPSED EVAL TIME: {(time.time() - ev_st)} sec"
+        )
+
 
 def main(args):
     torch.moreh.option.enable_advanced_parallelization()
@@ -148,7 +152,9 @@ def main(args):
     tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path)
     tokenizer.pad_token_id = tokenizer.eos_token_id
     if args.use_lora:
-        from peft import get_peft_model, LoraConfig
+        from peft import get_peft_model
+        from peft import LoraConfig
+
         config = LoraConfig(
             lora_alpha=args.lora_alpha,
             lora_dropout=args.lora_dropout,
@@ -156,7 +162,7 @@ def main(args):
             target_modules=["q_proj", "v_proj"],
             bias="none",
             task_type="CAUSAL_LM",
-            )
+        )
         model = get_peft_model(model, config)
     print_trainable_parameters(model)
     # Prepare the model for training on Accelerator
@@ -166,8 +172,11 @@ def main(args):
     print(f"Downloading {args.dataset_name_or_path} dataset...")
     dataset = load_dataset(args.dataset_name_or_path).with_format("torch")
     if "validation" not in dataset:
-        dataset["train"] = load_dataset(args.dataset_name_or_path,  split="train[:95%]").with_format("torch")
-        dataset["validation"] = load_dataset(args.dataset_name_or_path,  split="train[95%:]").with_format("torch")
+        dataset["train"] = load_dataset(
+            args.dataset_name_or_path, split="train[:95%]").with_format("torch")
+        dataset["validation"] = load_dataset(
+            args.dataset_name_or_path, split="train[95%:]").with_format("torch")
+
     def create_prompt(prompt):
         full_prompt = f"{prompt['prompt']}</s>"
         return full_prompt
@@ -185,6 +194,7 @@ def main(args):
             "input_ids": tokenized["input_ids"],
             "attention_mask": tokenized["attention_mask"],
         }
+
     print("Preprocessing dataset...")
     # Preprocess dataset
     dataset = dataset.map(preprocess, num_proc=16, load_from_cache_file=True)
@@ -204,7 +214,6 @@ def main(args):
         shuffle=True,
         drop_last=True,
     )
-
 
     # Define AdamW optimizer
     optim = AdamW(model.parameters(), lr=args.lr)
@@ -233,13 +242,19 @@ def main(args):
             model.zero_grad(set_to_none=True)
             if step == 1:
                 loss.item()
-                logger.info(f"Model load and warmup done. Duration: {(time.time() - st):.2f}")
+                logger.info(
+                    f"Model load and warmup done. Duration: {(time.time() - st):.2f}"
+                )
                 st = time.time()
                 continue
             if step % args.log_interval == 0:
-                if step == args.log_interval: step_interval = args.log_interval - 1
-                else : step_interval = args.log_interval
-                logger.info(f"[Step {step+(epoch*len(train_dataloader))}/{total_step}] | Loss: {loss.item()} | Duration: {(time.time() - st):.2f} | {((step_interval * args.batch_size)/(time.time() - st)):.2f} | Throughput: {((step_interval * args.batch_size * args.block_size)/(time.time() - st)):.2f} tokens/sec")
+                if step == args.log_interval:
+                    step_interval = args.log_interval - 1
+                else:
+                    step_interval = args.log_interval
+                logger.info(
+                    f"[Step {step+(epoch*len(train_dataloader))}/{total_step}] | Loss: {loss.item()} | Duration: {(time.time() - st):.2f} | {((step_interval * args.batch_size)/(time.time() - st)):.2f} | Throughput: {((step_interval * args.batch_size * args.block_size)/(time.time() - st)):.2f} tokens/sec"
+                )
                 st = time.time()
 
             if step % args.eval_step == 0:
@@ -257,6 +272,7 @@ def main(args):
     model.save_pretrained(args.save_dir)
     tokenizer.save_pretrained(args.save_dir)
     print(f"Model saved in {args.save_dir}")
+
 
 if __name__ == "__main__":
     args = parse_args()

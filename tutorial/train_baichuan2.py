@@ -1,28 +1,35 @@
-import copy
-import torch
-
-from loguru import logger
 from argparse import ArgumentParser
-from transformers import AdamW, AutoModelForCausalLM, AutoTokenizer
-import sys, os
+import copy
+import os
+import sys
 import time
+
 from datasets import load_dataset
+from loguru import logger
+import torch
+from transformers import AdamW
+from transformers import AutoModelForCausalLM
+from transformers import AutoTokenizer
 
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(sys.path[0]), 'model')))
+sys.path.append(
+    os.path.abspath(os.path.join(os.path.dirname(sys.path[0]), "model")))
 from modeling_baichuan import BaichuanForCausalLM
+
 
 # Compose pad token mask
 def create_mask(input_ids, tokenizer):
-    pad_token_ids = tokenizer.pad_token_id if tokenizer.pad_token_id is not None else tokenizer.eos_token_id
+    pad_token_ids = (tokenizer.pad_token_id if tokenizer.pad_token_id
+                     is not None else tokenizer.eos_token_id)
     return (input_ids != pad_token_ids).long()
 
+
 # Mask pad tokens
-def mask_pads(input_ids, attention_mask, ignore_index = -100):
+def mask_pads(input_ids, attention_mask, ignore_index=-100):
     idx_mask = attention_mask
     labels = copy.deepcopy(input_ids)
     labels[~idx_mask.bool()] = ignore_index
     return labels
+
 
 # Construct a formatted prompt
 def create_prompt(prompt):
@@ -45,60 +52,50 @@ def print_trainable_parameters(model):
     )
 
 
-# Arguments    
+# Arguments
 def parse_args():
     parser = ArgumentParser(description="Baichuan2 FineTuning")
     parser.add_argument(
         "--model-name-or-path",
         type=str,
         help="model name or path",
-        default='baichuan-inc/Baichuan2-13B-Base'
+        default="baichuan-inc/Baichuan2-13B-Base",
     )
     parser.add_argument(
         "--dataset-name-or-path",
         type=str,
-        default='bitext/Bitext-customer-support-llm-chatbot-training-dataset',
+        default="bitext/Bitext-customer-support-llm-chatbot-training-dataset",
     )
-    parser.add_argument(
-        "--epochs", 
-        type=int, 
-        default=3, 
-        help="num training epochs"
-    )
-    parser.add_argument(
-        "--batch-size", 
-        type=int, 
-        default=256, 
-        help="train bacth size"
-    )
-    parser.add_argument(
-        "--block-size", 
-        type=int, 
-        default=1024, 
-        help="max input token length"
-    )
-    parser.add_argument(
-        "--lr", 
-        type=float, 
-        default=0.00005, 
-        help="learning rate"
-    )
-    parser.add_argument(
-        "--log-interval", 
-        type=int, 
-        default=10, 
-        help="log interval"
-    )
+    parser.add_argument("--epochs",
+                        type=int,
+                        default=3,
+                        help="num training epochs")
+    parser.add_argument("--batch-size",
+                        type=int,
+                        default=256,
+                        help="train bacth size")
+    parser.add_argument("--block-size",
+                        type=int,
+                        default=1024,
+                        help="max input token length")
+    parser.add_argument("--lr",
+                        type=float,
+                        default=0.00005,
+                        help="learning rate")
+    parser.add_argument("--log-interval",
+                        type=int,
+                        default=10,
+                        help="log interval")
     parser.add_argument(
         "--eval-step",
         type=int,
         default=100,
     )
     parser.add_argument(
-        "--save-model-dir", 
-        type=str, 
-        default="./baichuan_code_generation", 
-        help="path to save model"
+        "--save-model-dir",
+        type=str,
+        default="./baichuan_code_generation",
+        help="path to save model",
     )
     parser.add_argument(
         "--use-lora",
@@ -122,13 +119,14 @@ def parse_args():
     args = parser.parse_args()
     return args
 
+
 def eval(model, eval_dataloader):
     with torch.no_grad():
         logger.info("[START EPOCH EVAL]")
         model.eval()
         ev_st = time.time()
-        eval_loss = torch.tensor([0], device='cuda')
-        total_correct = torch.tensor([0], device='cuda')
+        eval_loss = torch.tensor([0], device="cuda")
+        total_correct = torch.tensor([0], device="cuda")
         for e_step, e_batch in enumerate(eval_dataloader, start=1):
             e_input_ids = e_batch["input_ids"]
             e_attn_mask = e_batch["attention_mask"]
@@ -144,20 +142,28 @@ def eval(model, eval_dataloader):
             )
             eval_loss += e_outputs[0]
         logger.info(f"EVAL STEP: {e_step} / {len(eval_dataloader)}")
-        logger.info(f"Eval Loss: {eval_loss.item()/len(eval_dataloader)} | ELAPSED EVAL TIME: {(time.time() - ev_st)} sec")
+        logger.info(
+            f"Eval Loss: {eval_loss.item()/len(eval_dataloader)} | ELAPSED EVAL TIME: {(time.time() - ev_st)} sec"
+        )
 
 
 def main(args):
-    
+
     # Apply Advanced Parallelization
     torch.moreh.option.enable_advanced_parallelization()
-    print(f"Load {args.model_name_or_path} model checkpoint and tokenizer...") 
+    print(f"Load {args.model_name_or_path} model checkpoint and tokenizer...")
     # Load base model and tokenizer
-    model = BaichuanForCausalLM.from_pretrained(args.model_name_or_path, trust_remote_code=True, dtype = torch.bfloat16)
-    tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path, trust_remote_code=True)
+    model = BaichuanForCausalLM.from_pretrained(args.model_name_or_path,
+                                                trust_remote_code=True,
+                                                dtype=torch.bfloat16)
+    tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path,
+                                              trust_remote_code=True)
     # Prepare the model for training on Accelerator
     if args.use_lora:
-        from peft import get_peft_model, LoraConfig,TaskType
+        from peft import get_peft_model
+        from peft import LoraConfig
+        from peft import TaskType
+
         peft_config = LoraConfig(
             task_type=TaskType.CAUSAL_LM,
             target_modules=["W_pack"],
@@ -175,8 +181,11 @@ def main(args):
     print(f"Downloading {args.dataset_name_or_path} dataset...")
     dataset = load_dataset(args.dataset_name_or_path).with_format("torch")
     if "validation" not in dataset:
-        dataset["train"] = load_dataset(args.dataset_name_or_path,  split="train[:80%]").with_format("torch")
-        dataset["validation"] = load_dataset(args.dataset_name_or_path,  split="train[80%:]").with_format("torch")
+        dataset["train"] = load_dataset(
+            args.dataset_name_or_path, split="train[:80%]").with_format("torch")
+        dataset["validation"] = load_dataset(
+            args.dataset_name_or_path, split="train[80%:]").with_format("torch")
+
     def preprocess(prompt):
         tokenized = tokenizer(
             create_prompt(prompt),
@@ -188,6 +197,7 @@ def main(args):
             "input_ids": tokenized["input_ids"],
             "attention_mask": tokenized["attention_mask"],
         }
+
     print("Preprocessing dataset...")
     dataset = dataset.map(preprocess, num_proc=16, load_from_cache_file=True)
 
@@ -228,18 +238,24 @@ def main(args):
             )
             loss = outputs[0]
             loss.backward()
-            
+
             optim.step()
             model.zero_grad(set_to_none=True)
             if step == 1:
                 loss.item()
-                logger.info(f"Model load and warmup done. Duration: {(time.time() - st):.2f}")
+                logger.info(
+                    f"Model load and warmup done. Duration: {(time.time() - st):.2f}"
+                )
                 st = time.time()
                 continue
             if step % args.log_interval == 0:
-                if step == args.log_interval: step_interval = args.log_interval - 1
-                else : step_interval = args.log_interval
-                logger.info(f"[Step {step+(epoch*len(train_dataloader))}/{total_step}] | Loss: {loss.item()} | Duration: {(time.time() - st):.2f} | {((step_interval * args.batch_size)/(time.time() - st)):.2f} | Throughput: {((step_interval * args.batch_size * args.block_size)/(time.time() - st)):.2f} tokens/sec")
+                if step == args.log_interval:
+                    step_interval = args.log_interval - 1
+                else:
+                    step_interval = args.log_interval
+                logger.info(
+                    f"[Step {step+(epoch*len(train_dataloader))}/{total_step}] | Loss: {loss.item()} | Duration: {(time.time() - st):.2f} | {((step_interval * args.batch_size)/(time.time() - st)):.2f} | Throughput: {((step_interval * args.batch_size * args.block_size)/(time.time() - st)):.2f} tokens/sec"
+                )
                 st = time.time()
 
             if step % args.eval_step == 0:
@@ -261,9 +277,6 @@ def main(args):
     print(f"Model saved in {args.save_model_dir}")
 
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = parse_args()
     main(args)
-
-

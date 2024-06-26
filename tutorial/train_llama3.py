@@ -1,17 +1,22 @@
-import torch
-
-from loguru import logger
-from datasets import load_dataset
 from argparse import ArgumentParser
-from transformers import AdamW, AutoModelForCausalLM, AutoTokenizer
-import time
 import copy
-from peft import get_peft_model, LoraConfig
+import time
+
+from datasets import load_dataset
+from loguru import logger
+from peft import get_peft_model
+from peft import LoraConfig
+import torch
+from transformers import AdamW
+from transformers import AutoModelForCausalLM
+from transformers import AutoTokenizer
+
 
 # Compose pad token mask
 def create_mask(input_ids, tokenizer):
     pad_token_ids = tokenizer.pad_token_id if tokenizer.pad_token_id is not None else tokenizer.eos_token_id
     return (input_ids != pad_token_ids).long()
+
 
 # Mask pad tokens
 def mask_pads(inputs, tokenizer, ignore_index=-100):
@@ -19,6 +24,7 @@ def mask_pads(inputs, tokenizer, ignore_index=-100):
     labels = copy.deepcopy(inputs)
     labels[~idx_mask.bool()] = ignore_index
     return labels
+
 
 def print_trainable_parameters(model):
     """
@@ -34,7 +40,8 @@ def print_trainable_parameters(model):
         f"trainable params: {trainable_params} || all params: {all_param} || trainable%: {100 * trainable_params / all_param}"
     )
 
-# Arguments    
+
+# Arguments
 def parse_args():
     parser = ArgumentParser(description="LLaMA3 FineTuning")
     parser.add_argument(
@@ -43,53 +50,39 @@ def parse_args():
         default="meta-llama/Meta-Llama-3-8B",
         help="model name or path",
     )
-    parser.add_argument(
-        "--epochs", 
-        type=int, 
-        default=3, 
-        help="num training epochs"
-    )
-    parser.add_argument(
-        "--batch-size", 
-        type=int, 
-        default=256, 
-        help="train bacth size"
-    )
-    parser.add_argument(
-        "--block-size", 
-        type=int, 
-        default=1024, 
-        help="max input token length"
-    )
-    parser.add_argument(
-        "--dataset-name-or-path", 
-        type=str, 
-        default="cnn_dailymail", 
-        help="dataset name or path"
-    )
-    parser.add_argument(
-        "--lr", 
-        type=float, 
-        default=0.00001, 
-        help="learning rate"
-    )
-    parser.add_argument(
-        "--log-interval", 
-        type=int, 
-        default=10, 
-        help="log interval"
-    )
+    parser.add_argument("--epochs",
+                        type=int,
+                        default=3,
+                        help="num training epochs")
+    parser.add_argument("--batch-size",
+                        type=int,
+                        default=256,
+                        help="train bacth size")
+    parser.add_argument("--block-size",
+                        type=int,
+                        default=1024,
+                        help="max input token length")
+    parser.add_argument("--dataset-name-or-path",
+                        type=str,
+                        default="cnn_dailymail",
+                        help="dataset name or path")
+    parser.add_argument("--lr",
+                        type=float,
+                        default=0.00001,
+                        help="learning rate")
+    parser.add_argument("--log-interval",
+                        type=int,
+                        default=10,
+                        help="log interval")
     parser.add_argument(
         "--eval-step",
         type=int,
         default=100,
     )
-    parser.add_argument(
-        "--save-model-dir", 
-        type=str, 
-        default="./llama3_summarization", 
-        help="path to save model"
-    )
+    parser.add_argument("--save-model-dir",
+                        type=str,
+                        default="./llama3_summarization",
+                        help="path to save model")
     parser.add_argument(
         "--use-lora",
         action="store_true",
@@ -111,8 +104,8 @@ def parse_args():
     )
     args = parser.parse_args()
 
-
     return args
+
 
 def eval(model, eval_dataloader, tokenizer):
     with torch.no_grad():
@@ -136,7 +129,10 @@ def eval(model, eval_dataloader, tokenizer):
             )
             eval_loss += e_outputs[0]
         logger.info(f"EVAL STEP: {e_step} / {len(eval_dataloader)}")
-        logger.info(f"Eval Loss: {eval_loss.item()/len(eval_dataloader)} | ELAPSED EVAL TIME: {(time.time() - ev_st)} sec")
+        logger.info(
+            f"Eval Loss: {eval_loss.item()/len(eval_dataloader)} | ELAPSED EVAL TIME: {(time.time() - ev_st)} sec"
+        )
+
 
 def main(args):
     torch.moreh.option.enable_advanced_parallelization()
@@ -147,7 +143,7 @@ def main(args):
 
     # Set pad token
     tokenizer.pad_token_id = 0
-    
+
     if args.use_lora:
         config = LoraConfig(
             lora_alpha=args.lora_alpha,
@@ -156,7 +152,7 @@ def main(args):
             target_modules=["q_proj", "v_proj"],
             bias="none",
             task_type="CAUSAL_LM",
-            )
+        )
         model = get_peft_model(model, config)
     print_trainable_parameters(model)
     # Prepare the model for training on Accelerator
@@ -166,12 +162,17 @@ def main(args):
     # Load dataset
     print(f"Downloading {args.dataset_name_or_path} dataset...")
     if args.dataset_name_or_path == "cnn_dailymail":
-        dataset = load_dataset(args.dataset_name_or_path, "3.0.0").with_format("torch")
+        dataset = load_dataset(args.dataset_name_or_path,
+                               "3.0.0").with_format("torch")
     else:
         dataset = load_dataset(args.dataset_name_or_path).with_format("torch")
         if "validation" not in dataset:
-            dataset["train"] = load_dataset(args.dataset_name_or_path,  split="train[:95%]").with_format("torch")
-            dataset["validation"] = load_dataset(args.dataset_name_or_path,  split="train[95%:]").with_format("torch")
+            dataset["train"] = load_dataset(
+                args.dataset_name_or_path,
+                split="train[:95%]").with_format("torch")
+            dataset["validation"] = load_dataset(
+                args.dataset_name_or_path,
+                split="train[95%:]").with_format("torch")
 
     # Construct a formatted prompt
     def create_prompt(prompt):
@@ -202,6 +203,7 @@ def main(args):
         shuffle=True,
         drop_last=True,
     )
+
     # Create a DataLoader for the validation set
     eval_dataloader = torch.utils.data.DataLoader(
         dataset["validation"],
@@ -227,24 +229,30 @@ def main(args):
                 input_ids.cuda(),
                 attention_mask=attn_mask.cuda(),
                 labels=labels.cuda(),
-                use_cache=False,            
+                use_cache=False,
             )
             loss = outputs[0]
             loss.backward()
-            
+
             optim.step()
             model.zero_grad(set_to_none=True)
 
             # Logging
             if step == 1:
                 loss.item()
-                logger.info(f"Model load and warmup done. Duration: {(time.time() - st):.2f}")
+                logger.info(
+                    f"Model load and warmup done. Duration: {(time.time() - st):.2f}"
+                )
                 st = time.time()
                 continue
             if step % args.log_interval == 0:
-                if step == args.log_interval: step_interval = args.log_interval - 1
-                else : step_interval = args.log_interval
-                logger.info(f"[Step {step+(epoch*len(train_dataloader))}/{total_step}] | Loss: {loss.item()} | Duration: {(time.time() - st):.2f} | {((step_interval * args.batch_size)/(time.time() - st)):.2f} | Throughput: {((step_interval * args.batch_size * args.block_size)/(time.time() - st)):.2f} tokens/sec")
+                if step == args.log_interval:
+                    step_interval = args.log_interval - 1
+                else:
+                    step_interval = args.log_interval
+                logger.info(
+                    f"[Step {step+(epoch*len(train_dataloader))}/{total_step}] | Loss: {loss.item()} | Duration: {(time.time() - st):.2f} | {((step_interval * args.batch_size)/(time.time() - st)):.2f} | Throughput: {((step_interval * args.batch_size * args.block_size)/(time.time() - st)):.2f} tokens/sec"
+                )
                 st = time.time()
 
             if step % args.eval_step == 0:
@@ -258,12 +266,12 @@ def main(args):
         model.train()
         st = time.time()
 
-
     print("Training Done")
     print("Saving Model...")
     model.save_pretrained(args.save_model_dir)
     tokenizer.save_pretrained(args.save_model_dir)
     print(f"Model saved in {args.save_model_dir}")
+
 
 if __name__ == "__main__":
 

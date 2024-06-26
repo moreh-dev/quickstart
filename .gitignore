@@ -176,6 +176,7 @@ cython_debug/
 *.bin
 *.md
 !./README.md
+!git-hooks/README.md
 merges.txt
 
 # Notebooks
