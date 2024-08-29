@@ -1,0 +1,6 @@
+[style]
+based_on_style = google
+allow_multiline_lambdas = False
+allow_multiline_dictionary_keys = True
+blank_line_before_nested_class_or_def = True
+indent_dictionary_value = True
