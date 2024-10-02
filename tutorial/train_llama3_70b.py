@@ -49,7 +49,7 @@ def parse_args():
     parser.add_argument(
         "--model-name-or-path",
         type=str,
-        default="meta-llama/Meta-Llama-3-70B",
+        default="/nas/team_cx/checkpoints/llama3-70b-instruct",
         help="model name or path",
     )
     parser.add_argument("--epochs",

@@ -42,7 +42,7 @@ def parse_args():
     parser.add_argument(
         "--model-name-or-path",
         type=str,
-        default="facebook/opt-13b",
+        default="/nas/team_cx/checkpoints/gpt-13b",
         help="model name or path",
     )
     parser.add_argument(

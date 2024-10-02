@@ -22,7 +22,7 @@ def parse_args():
     parser.add_argument(
         "--model-name-or-path",
         type=str,
-        default="stabilityai/stable-diffusion-xl-base-1.0",
+        default="/nas/team_cx/checkpoints/stable-diffusion-xl-base-1.0",
         help="Pretrained model name or path",
     )
     parser.add_argument("--lr", type=float, default=1e-5, help="learning rate")

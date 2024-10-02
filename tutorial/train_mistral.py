@@ -37,7 +37,7 @@ def parse_args():
     parser.add_argument(
         "--model-name-or-path",
         type=str,
-        default="mistralai/Mistral-7B-v0.1",
+        default="/nas/team_cx/checkpoints/mistral-7b-v1",
         help="Hugging Face Model",
     )
     parser.add_argument(

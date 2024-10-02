@@ -34,7 +34,7 @@ def parse_args():
     parser.add_argument(
         "--model-name-or-path",
         type=str,
-        default="Qwen/Qwen1.5-7B",
+        default="/nas/team_cx/checkpoints/qwen1.5-7b",
         help="Hugging Face Model",
     )
     parser.add_argument(

@@ -59,7 +59,7 @@ def parse_args():
         "--model-name-or-path",
         type=str,
         help="model name or path",
-        default="baichuan-inc/Baichuan2-13B-Base",
+        default="/nas/team_cx/checkpoints/baichuan2-13b-hf",
     )
     parser.add_argument(
         "--dataset-name-or-path",
