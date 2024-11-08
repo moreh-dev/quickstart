@@ -174,7 +174,6 @@ cython_debug/
 *.json
 *.model
 *.bin
-*.md
 !git-hooks/README.md
 merges.txt
 
