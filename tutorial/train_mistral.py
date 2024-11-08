@@ -37,7 +37,7 @@ def parse_args():
     parser.add_argument(
         "--model-name-or-path",
         type=str,
-        default="mistralai/Mistral-7B-v0.1",
+        default="mistralai/Mistral-7B-v0.3",
         help="Hugging Face Model",
     )
     parser.add_argument(
@@ -49,7 +49,7 @@ def parse_args():
     parser.add_argument(
         "--batch-size",
         type=int,
-        default=512,
+        default=256,
         help="train batch size",
     )
     parser.add_argument(
@@ -128,13 +128,15 @@ def eval(model, eval_dataloader, args):
             e_input_ids = e_batch["input_ids"]
             e_attn_mask = e_batch["attention_mask"]
             e_labels = mask_pads(e_input_ids, e_attn_mask, args.ignore_index)
-
+            e_position_ids = e_attn_mask.long().cumsum(-1) - 1
+            e_position_ids.masked_fill_(e_attn_mask == 0, 1)
             if e_step % 10 == 0:
                 logger.info(f"EVAL STEP: {e_step} / {len(eval_dataloader)}")
             e_outputs = model(
                 e_input_ids.cuda(),
                 attention_mask=e_attn_mask.cuda(),
                 labels=e_labels.cuda(),
+                position_ids=e_position_ids.cuda(),
                 use_cache=False,
             )
             eval_loss += e_outputs[0]
@@ -228,10 +230,13 @@ def main(args):
         for step, batch in enumerate(train_dataloader, start=1):
             input_ids = batch["input_ids"]
             attn_mask = batch["attention_mask"]
+            position_ids = attn_mask.long().cumsum(-1) - 1
+            position_ids.masked_fill_(attn_mask == 0, 1)
             labels = mask_pads(input_ids, attn_mask, args.ignore_index)
             outputs = model(
                 input_ids.cuda(),
                 attention_mask=attn_mask.cuda(),
+                position_ids=position_ids.cuda(),
                 labels=labels.cuda(),
                 use_cache=False,
             )
@@ -253,7 +258,7 @@ def main(args):
                 else:
                     step_interval = args.log_interval
                 logger.info(
-                    f"[Step {step+(epoch*len(train_dataloader))}/{total_step}] | Loss: {loss.item()} | Duration: {(time.time() - st):.2f} | {((step_interval * args.batch_size)/(time.time() - st)):.2f} | Throughput: {((step_interval * args.batch_size * args.block_size)/(time.time() - st)):.2f} tokens/sec"
+                    f"[Step {step+(epoch*len(train_dataloader))}/{total_step}] | Loss: {loss.item():.4f} | Duration: {(time.time() - st):.2f} sec | Throughput: {((step_interval * args.batch_size * args.block_size)/(time.time() - st)):.2f} tokens/sec"
                 )
                 st = time.time()
 

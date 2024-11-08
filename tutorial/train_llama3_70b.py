@@ -84,7 +84,7 @@ def parse_args():
         default=100,
     )
     parser.add_argument(
-        "--save-path",
+        "--save-dir",
         type=str,
         default="./llama3_70b_summarization",
         help="model save path",
@@ -267,7 +267,7 @@ def main(args):
                 else:
                     step_interval = args.log_interval
                 logger.info(
-                    f"[Step {step+(epoch*len(train_dataloader))}/{total_step}] | Loss: {loss.item()} | Duration: {(time.time() - st):.2f} | {((step_interval * args.batch_size)/(time.time() - st)):.2f} | Throughput: {((step_interval * args.batch_size * args.block_size)/(time.time() - st)):.2f} tokens/sec"
+                    f"[Step {step+(epoch*len(train_dataloader))}/{total_step}] | Loss: {loss.item():.4f} | Duration: {(time.time() - st):.2f} sec | Throughput: {((step_interval * args.batch_size * args.block_size)/(time.time() - st)):.2f} tokens/sec"
                 )
                 st = time.time()
 
@@ -284,9 +284,9 @@ def main(args):
 
     print("Training Done")
     print("Saving Model...")
-    model.save_pretrained(args.save_path)
-    tokenizer.save_pretrained(args.save_path)
-    print(f"Model saved in {args.save_path}")
+    model.save_pretrained(args.save_dir)
+    tokenizer.save_pretrained(args.save_dir)
+    print(f"Model saved in {args.save_dir}")
 
 
 if __name__ == "__main__":
