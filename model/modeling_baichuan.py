@@ -1,7 +1,7 @@
 # Copyright (c) 2023, Baichuan Intelligent Technology. All rights reserved.
 
-from configuration_baichuan import BaichuanConfig
-from generation_utils import build_chat_input, TextIterStreamer
+from .configuration_baichuan import BaichuanConfig
+from .generation_utils import build_chat_input, TextIterStreamer
 
 import math
 from threading import Thread
