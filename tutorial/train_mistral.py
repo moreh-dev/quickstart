@@ -135,8 +135,8 @@ def eval(model, eval_dataloader, args):
             e_outputs = model(
                 e_input_ids.cuda(),
                 attention_mask=e_attn_mask.cuda(),
-                labels=e_labels.cuda(),
                 position_ids=e_position_ids.cuda(),
+                labels=e_labels.cuda(),
                 use_cache=False,
             )
             eval_loss += e_outputs[0]

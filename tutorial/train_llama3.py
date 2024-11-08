@@ -118,12 +118,15 @@ def eval(model, eval_dataloader, tokenizer):
             e_input_ids = e_batch["input_ids"]
             e_inputs, e_labels = e_input_ids, mask_pads(e_input_ids, tokenizer)
             e_attn_mask = create_mask(e_inputs, tokenizer)
+            e_position_ids = e_attn_mask.long().cumsum(-1) - 1
+            e_position_ids.masked_fill_(e_attn_mask == 0, 1)
             if e_step % 10 == 0:
                 logger.info(f"EVAL STEP: {e_step} / {len(eval_dataloader)}")
             e_outputs = model(
                 e_inputs.cuda(),
                 attention_mask=e_attn_mask.cuda(),
                 labels=e_labels.cuda(),
+                position_ids=e_position_ids.cuda(),
                 use_cache=False,
             )
             eval_loss += e_outputs[0]
@@ -224,9 +227,12 @@ def main(args):
             input_ids = batch["input_ids"]
             inputs, labels = input_ids, mask_pads(input_ids, tokenizer)
             attn_mask = create_mask(inputs, tokenizer)
+            position_ids = attn_mask.long().cumsum(-1) - 1
+            position_ids.masked_fill_(attn_mask == 0, 1)
             outputs = model(
                 input_ids.cuda(),
                 attention_mask=attn_mask.cuda(),
+                position_ids=position_ids.cuda(),
                 labels=labels.cuda(),
                 use_cache=False,
             )
