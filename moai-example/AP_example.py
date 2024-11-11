@@ -70,6 +70,11 @@ def parse_args():
         default="./outputs", 
         help="path to save model",
     )
+    parser.add_argument(
+        "--with-ap",
+        action="store_true",
+        help="use automatic parallelization"
+    )
     args = parser.parse_args()
 
 
@@ -79,7 +84,8 @@ def parse_args():
 def main(args):
     
     # Apply Advanced Parallelization
-    torch.moreh.option.enable_advanced_parallelization()
+    if args.with_ap:
+        torch.moreh.option.enable_advanced_parallelization()
     
     # Load base model and tokenizer
     tokenizer = LlamaTokenizer.from_pretrained(args.model_name_or_path)
