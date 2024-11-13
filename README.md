@@ -112,7 +112,7 @@ python tutorial/train_llama3.py \
 
 
 ### Inference
-| **Baseline Model** | **Infernece Script**             |
+| **Baseline Model** | **Inference Script**             |
 | ------------------ | -------------------------------- |
 | Llama3 8B          | `tutorial/inference_llama3.py`   |
 | Llama2 7B          | `tutorial/inference_llama2.py`   |
