@@ -1,15 +1,9 @@
 from datasets import load_dataset
 from trl import SFTConfig, SFTTrainer
-from transformers import AutoTokenizer, AutoModelForCausalLM
-from model.modeling_baichuan import BaichuanForCausalLM
-from peft import LoraConfig, get_peft_model
-from train_utils import TrainCallback
-from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
-from torch.distributed.fsdp import StateDictType, FullStateDictConfig
 from accelerate.logging import get_logger
 from accelerate import Accelerator
-from tqdm.auto import tqdm
 import datasets
+from train_utils import load_model, TrainCallback
 import transformers
 import time
 import copy
@@ -47,19 +41,7 @@ def main(args):
         datasets.utils.logging.set_verbosity_error()
         transformers.utils.logging.set_verbosity_error()
 
-    model = BaichuanForCausalLM.from_pretrained(
-        args.model,
-        torch_dtype=torch.float32,
-        trust_remote_code=True,
-    )
-
-    tokenizer = AutoTokenizer.from_pretrained(
-        args.model, 
-        trust_remote_code=True,
-        padding_side="right",
-    )
-
-    tokenizer.pad_token = tokenizer.eos_token
+    model, tokenizer = load_model(args)
 
     dataset = load_dataset(args.dataset).with_format("torch")
     dataset["train"] = load_dataset(args.dataset, split="train[5%:]")
@@ -76,7 +58,8 @@ def main(args):
             chat = f"##INSTRUCTION {prompt['instruction']}\n\n ##RESPONSE {prompt['response']}"
         result = tokenizer(chat, truncation=True, max_length=args.sequence_length, padding="max_length")
         result['labels'] = copy.deepcopy(result['input_ids'])
-        # result['position_ids'] = torch.arange(0, len(result['labels']))
+        if 'baichuan' not in model.config.architectures[0].lower():
+            result['position_ids'] = torch.arange(0, len(result['labels']))
         return result
 
     dataset = dataset.map(preprocess, num_proc=1)
@@ -94,7 +77,6 @@ def main(args):
         lr_scheduler_type="cosine",
         learning_rate=args.lr,
         warmup_steps=50,
-        bf16=True,
         do_eval=True,
         eval_strategy="epoch",
         logging_steps=args.log_interval,
@@ -103,19 +85,6 @@ def main(args):
         logging_nan_inf_filter=False,
         max_grad_norm = 0
     )
-
-    peft_config = LoraConfig(
-        r=64,
-        lora_alpha=16,
-        target_modules=["q_proj", "v_proj"],
-        lora_dropout=0.1,
-        bias="none",
-        task_type="CAUSAL_LM",
-    )
-
-    
-    if args.lora:
-        model = get_peft_model(model, peft_config)
 
     total_train_steps = (len(dataset["train"]) // (args.train_batch_size)) * args.num_epochs
     
@@ -128,8 +97,6 @@ def main(args):
     )
 
     trainer.train()
-    if accelerator.is_local_main_process:
-        print("Skip to save model")
 
 if __name__ == "__main__":
     args = arg_parse()

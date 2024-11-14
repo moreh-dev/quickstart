@@ -1,23 +1,18 @@
 from transformers import TrainerCallback
-from accelerate.logging import get_logger
-from tqdm.auto import tqdm
 import time
+from datasets import load_dataset
+from transformers import AutoTokenizer, AutoModelForCausalLM, TrainerCallback, AutoConfig
+from model.modeling_baichuan import BaichuanForCausalLM
+from peft import LoraConfig, get_peft_model, TaskType
 
 
 class TrainCallback(TrainerCallback):
     def __init__(self, total_steps):
-        self.step_st = None
-        self.warm_up_st = time.time()
-        self.warm_up_ed = None
-        self.eval_st = None
-        self.eval_ed = None
-        self.step_tps = 0
         self.total_train_steps = total_steps
         self.warmup_checker = False
 
     def on_train_begin(self, args, state, control, **kwargs):
         self.start = time.time()
-        self.duration_st = time.time()
         self.accum = 0
 
     def on_step_begin(self, args, state, control, **kwargs):
@@ -42,3 +37,48 @@ class TrainCallback(TrainerCallback):
             self.accum = 0
             self.start = time.time()
 
+
+def load_model(args):
+    config = AutoConfig.from_pretrained(args.model)
+    
+    if "baichuan" in config.architectures[0].lower():
+        model = BaichuanForCausalLM.from_pretrained(
+            args.model,
+            trust_remote_code=True,
+        )
+        if args.lora:
+            peft_config = LoraConfig(
+                task_type=TaskType.CAUSAL_LM,
+                target_modules=["q_proj", "v_proj"],
+                r=args.lora_r,
+                lora_alpha=args.lora_alpha,
+                lora_dropout=args.lora_dropout,
+                bias="none",
+            )
+            model = get_peft_model(model, peft_config)
+    else:
+        model = AutoModelForCausalLM.from_pretrained(
+            args.model,
+            trust_remote_code=True,
+        )
+        if args.lora:
+            peft_config = LoraConfig(
+                task_type=TaskType.CAUSAL_LM,
+                target_modules=["W_pack"],
+                inference_mode=False,
+                r=args.lora_r,
+                lora_alpha=args.lora_alpha,
+                lora_dropout=args.lora_dropout,
+            )
+            model = get_peft_model(model, peft_config)
+
+
+    tokenizer = AutoTokenizer.from_pretrained(
+            args.model, 
+            trust_remote_code=True,
+            padding_side="right"
+        )
+
+    tokenizer.pad_token = tokenizer.eos_token
+
+    return model, tokenizer
