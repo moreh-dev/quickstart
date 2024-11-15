@@ -1,10 +1,34 @@
-from transformers import TrainerCallback
 import time
-from datasets import load_dataset
+import copy
+
 from transformers import AutoTokenizer, AutoModelForCausalLM, TrainerCallback, AutoConfig
-from model.modeling_baichuan import BaichuanForCausalLM
-from peft import LoraConfig, get_peft_model, TaskType
+import torch
+from peft import LoraConfig, get_peft_model
 from loguru import logger
+
+from model.modeling_baichuan import BaichuanForCausalLM
+
+class Preprocessor:
+    def __init__(self, model, tokenizer, seq_length):
+        self.tokenizer = tokenizer
+        self.model_name = model.config.architectures[0].lower()
+        self.seq_length = seq_length
+
+    def __call__(self, prompt):
+        if self.tokenizer.chat_template is not None:
+            chat = [
+                {"role": "user", "content": f"{prompt['instruction']}"},
+                {"role": "assistant", "content": f"{prompt['response']}"},
+                ]
+            chat = self.tokenizer.apply_chat_template(chat, tokenize=False)
+        else:
+            chat = f"##INSTRUCTION {prompt['instruction']}\n\n ##RESPONSE {prompt['response']}"
+        result = self.tokenizer(chat, truncation=True, max_length=self.seq_length , padding="max_length")
+        result['labels'] = copy.deepcopy(result['input_ids'])
+        if 'baichuan' not in self.model_name :
+            result['position_ids'] = torch.arange(0, len(result['labels']))
+        return result
+
 
 class TrainCallback(TrainerCallback):
     def __init__(self, total_steps):

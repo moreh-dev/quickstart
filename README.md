@@ -19,7 +19,7 @@
 This repository provides code to experiment with training large models on [Moreh's MoAI Platform](https://moreh.io/product).
 With the MoAI platform you can scale to thousands of GPU/NPUs by automatic parallelization and optimization, without any code changes.
 
-We currently provide six LLMs; Llama3, Llama2, Qwen1.5, Mistral, GPT and Baichuan2, as well as SDXL.
+We currently provide four LLMs; Llama3, Qwen2.5, Mistral, and Baichuan2, as well as SDXL.
 
     
 # Getting Started
@@ -32,17 +32,16 @@ First, clone this repository and navigate to the repo directory.
 git clone https://github.com/moreh-dev/quickstart
 cd quickstart
 ```
-After you are in the `quickstart` directory, install the dependency packages for the model you want to fine-tune. The requirements files for each model are located in the `requirements` directory. For example, to install the dependencies for the Llama3 model, use the following command:
+After you are in the `quickstart` directory, install the dependency packages by following commands :
 
 ```bash
-pip install -r requirements/requirements_llama3.txt
+pip install -r requirements.txt
 ```
 
 ## Model Preparation
 If you want to fine-tune the Llama2, Llama3, or Mistral models, you need access to their respective Hugging Face repositories. Please ensure you have the necessary acess before starting model training.
 - Llama3 : https://huggingface.co/meta-llama/Meta-Llama-3-8B or https://huggingface.co/meta-llama/Meta-Llama-3-70B
-- Llama2 : https://huggingface.co/meta-llama/Llama-2-7b-hf
-- Mistral : https://huggingface.co/mistralai/Mistral-7B-v0.1
+- Mistral : https://huggingface.co/mistralai/Mistral-7B-v0.3
 
 After obtaining access, authenticate your token with the following command:
 ```
@@ -62,17 +61,16 @@ torch.moreh.option.enable_advanced_parallelization()
 ```
 ## LLM Information
 
-Information about the models currently supported by this repository, along with their target tasks and training scripts, are as follows:
+Information about the models currently supported by this repository are as follows:
 
-| **Baseline Model**    | **Task**           | **Training Script**                      | **Dataset**                                                                                                                                                |
-| ------------ | ------------------ | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Llama3 8B](https://huggingface.co/meta-llama/Meta-Llama-3-8B)  | Text Summarization | `tutorial/train_llama3.py`     | [cnn_dailymail](https://huggingface.co/datasets/abisee/cnn_dailymail)                                                                                      |
-| [Llama3 70B  ](https://huggingface.co/meta-llama/Meta-Llama-3-70B) | Text Summarization | `tutorial/train_llama3_70b.py` | [cnn_dailymail](https://huggingface.co/datasets/abisee/cnn_dailymail)                                                                                      |
-| [Llama2 7B](https://huggingface.co/meta-llama/Meta-Llama-3-70B)       | Text Summarization | `tutorial/train_llama2.py`     | [cnn_dailymail](https://huggingface.co/datasets/abisee/cnn_dailymail)                                                                                      |
-| [Qwen1.5 7B](https://huggingface.co/Qwen/Qwen1.5-7B)     | Code Generation    | `tutorial/train_qwen.py`       | [iamtarun/python_code_instructions_18k_alpaca](https://huggingface.co/datasets/iamtarun/python_code_instructions_18k_alpaca)                               |
-| [Mistral v0.1 7B ](https://huggingface.co/mistralai/Mistral-7B-v0.1)      | Code Generation    | `tutorial/train_mistral.py`    | [iamtarun/python_code_instructions_18k_alpaca](https://huggingface.co/datasets/iamtarun/python_code_instructions_18k_alpaca)                               |
-| [OPT 13B](https://huggingface.co/facebook/opt-13b) | Code Generation    | `tutorial/train_opt.py`        | [mlabonne/Evol-Instruct-Python-26k](https://huggingface.co/datasets/mlabonne/Evol-Instruct-Python-26k)                                                     |
-| [Baichuan2 13B](https://huggingface.co/baichuan-inc/Baichuan2-13B-Base)    | Chatbot            | `tutorial/train_baichuan2_13b.py`   | [bitext/Bitext-customer-support-llm-chatbot-training-dataset](https://huggingface.co/datasets/bitext/Bitext-customer-support-llm-chatbot-training-dataset) |
+| **Baseline Model**                                                      | **Model Card Name**             |
+|-------------------------------------------------------------------------|---------------------------------|
+| [Llama3 8B](https://huggingface.co/meta-llama/Meta-Llama-3-8B)          | meta-llama/Meta-Llama-3-8B      |
+| [Llama3 70B  ](https://huggingface.co/meta-llama/Meta-Llama-3-70B)      | meta-llama/Meta-Llama-3-70B     |
+| [Qwen2.5 7B](https://huggingface.co/Qwen/Qwen2.5-7B)                    | Qwen/Qwen2.5-7B                 |
+| [Mistral v0.3 7B ](https://huggingface.co/mistralai/Mistral-7B-v0.3)    | mistralai/Mistral-7B-v0.3       |
+| [Baichuan2 13B](https://huggingface.co/baichuan-inc/Baichuan2-13B-Base) | baichuan-inc/Baichuan2-13B-Base |
+
 
 ## Training
 
@@ -80,36 +78,43 @@ Information about the models currently supported by this repository, along with 
 
 ### Full Fine-tuning
 
- Run the training script to fully fine-tune the model. For example, if you want to fine-tune the llama-3 8B model, 
+ Run the training script to fully fine-tune the model. For example, if you want to fine-tune the llama-3 8B model:
 ```bash 
-python tutorial/train_llama3.py \ 
-  --epochs 1  \ 
-  --batch-size 256 \ 
-  --block-size 1024 \ 
-  --lr 0.00001 \ 
-  --save-dir ${SAVE_DIR_PATH} \ 
-  --ignore-index -100 \ 
-  --log-interval 1
+TOKENIZERS_PARALLELISM=true accelerate launch --config_file config.yaml train.py \
+     --lr 0.000001 \
+     --model meta-llama/Meta-Llama-3-8B \
+     --dataset bitext/Bitext-customer-support-llm-chatbot-training-dataset \
+     --train-batch-size 64 \
+     --eval-batch-size 64 \
+     --sequence-length 1024 \
+     --log-interval 10 \
+     --num-epochs 5 \
+     --output-dir llama3-finetuned
 ```
 
 ### LoRA Fine-tuning
 
-To train the LoRA adapter only, you can give a `--use-lora` argument with LoRA config parameters. 
+To train the LoRA adapter only, you can give a `--lora` argument with LoRA config parameters. 
 
 ```bash 
-python tutorial/train_llama3.py \ 
-  --epochs 1 \ 
-  --batch-size 256 \ 
-  --block-size 1024 \ 
-  --lr 0.00001 \ 
-  --save-dir ${SAVE_DIR_PATH} \ 
-  --log-interval 1 \ 
-  --use-lora \ 
-  --lora-r 64 \ 
-  --lora-alpha 16 \ 
-  --lora-dropout 0.1 \
+TOKENIZERS_PARALLELISM=true accelerate launch --config_file config.yaml train.py \
+     --lr 0.0001 \
+     --model meta-llama/Meta-Llama-3-8B \
+     --dataset bitext/Bitext-customer-support-llm-chatbot-training-dataset \
+     --train-batch-size 64 \
+     --eval-batch-size 64 \
+     --sequence-length 1024 \
+     --log-interval 10 \
+     --num-epochs 5 \
+     --lora \
+     --lora-r 64 \
+     --lora-alpha 16 \
+     --lora-dropout 0.1 \
+     --output-dir llama3-finetuned-lora
 ```
+You can change model name in `--model` arguments to fine-tune your desired model.
 
+If you want to fine-tune your model with the other dataset, you can fix `__call__` method of the `Preprocessor` class which is defined in `train_utils.py` to the desired format.
 
 ### Inference
 | **Baseline Model** | **Inference Script**             |

@@ -1,21 +1,22 @@
-from datasets import load_dataset
-from trl import SFTConfig, SFTTrainer
+import argparse
+
 from accelerate.logging import get_logger
 from accelerate import Accelerator
 import datasets
-from train_utils import load_model, TrainCallback
+from datasets import load_dataset
 import transformers
-import copy
 import torch
-import argparse
+from trl import SFTConfig, SFTTrainer
+
+from train_utils import load_model, TrainCallback, Preprocessor
 
 def arg_parse():
     parser = argparse.ArgumentParser()
     parser.add_argument("--lora", action="store_true")
     parser.add_argument("--model", type=str, default="meta-llama/Meta-Llama-3-8B")
     parser.add_argument("--dataset", type=str, default="bitext/Bitext-customer-support-llm-chatbot-training-dataset")
-    parser.add_argument("--train-batch-size", type=int, default=16)
-    parser.add_argument("--eval-batch-size", type=int, default=16)
+    parser.add_argument("--train-batch-size", type=int, default=64)
+    parser.add_argument("--eval-batch-size", type=int, default=64)
     parser.add_argument("--sequence-length", type=int, default=1024)
     parser.add_argument("--lr", type=float, default=5e-5)
     parser.add_argument("--output-dir", type=str, default="llama-finetuned")
@@ -36,12 +37,8 @@ def main(args):
     logger.info(accelerator.state, main_process_only=True)
     logger.warning(accelerator.state, main_process_only=True)
 
-    if accelerator.is_local_main_process:
-        datasets.utils.logging.set_verbosity_warning()
-        transformers.utils.logging.set_verbosity_info()
-    else:
-        datasets.utils.logging.set_verbosity_error()
-        transformers.utils.logging.set_verbosity_error()
+    datasets.utils.logging.set_verbosity_warning()
+    transformers.utils.logging.set_verbosity_info()
 
     model, tokenizer = load_model(args)
 
@@ -49,20 +46,7 @@ def main(args):
     dataset["train"] = load_dataset(args.dataset, split="train[5%:]")
     dataset["validation"] = load_dataset(args.dataset, split="train[:5%]")
 
-    def preprocess(prompt): 
-        if tokenizer.chat_template is not None:
-            chat = [
-                {"role": "user", "content": f"{prompt['instruction']}"},
-                {"role": "assistant", "content": f"{prompt['response']}"},
-                ]
-            chat = tokenizer.apply_chat_template(chat, tokenize=False)
-        else:
-            chat = f"##INSTRUCTION {prompt['instruction']}\n\n ##RESPONSE {prompt['response']}"
-        result = tokenizer(chat, truncation=True, max_length=args.sequence_length, padding="max_length")
-        result['labels'] = copy.deepcopy(result['input_ids'])
-        if 'baichuan' not in model.config.architectures[0].lower():
-            result['position_ids'] = torch.arange(0, len(result['labels']))
-        return result
+    preprocess = Preprocessor(model, tokenizer, args.sequence_length)
 
     dataset = dataset.map(preprocess, num_proc=1)
     dataset = dataset.remove_columns(['flags', 'instruction', 'category', 'intent', 'response'])
