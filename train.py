@@ -5,7 +5,6 @@ from accelerate import Accelerator
 import datasets
 from train_utils import load_model, TrainCallback
 import transformers
-import time
 import copy
 import torch
 import argparse
@@ -22,7 +21,10 @@ def arg_parse():
     parser.add_argument("--output-dir", type=str, default="llama-finetuned")
     parser.add_argument("--num-epochs", type=int, default=5)
     parser.add_argument("--max-steps", type=int, default=-1)
-    parser.add_argument("--log-interval", type=int, default=5)
+    parser.add_argument("--log-interval", type=int, default=10)
+    parser.add_argument("--lora-r", type=int, default=64)
+    parser.add_argument("--lora-alpha", type=int, default=16)
+    parser.add_argument("--lora-dropout", type=float, default=0.1)
     args = parser.parse_args()
     return args
 
@@ -64,6 +66,7 @@ def main(args):
 
     dataset = dataset.map(preprocess, num_proc=1)
     dataset = dataset.remove_columns(['flags', 'instruction', 'category', 'intent', 'response'])
+    total_train_steps = (len(dataset["train"]) // (args.train_batch_size)) * args.num_epochs
 
     # SFTConfig
     trainer_config = SFTConfig(
@@ -85,8 +88,6 @@ def main(args):
         logging_nan_inf_filter=False,
         max_grad_norm = 0
     )
-
-    total_train_steps = (len(dataset["train"]) // (args.train_batch_size)) * args.num_epochs
     
     trainer = SFTTrainer(
         model,

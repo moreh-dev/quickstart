@@ -1,7 +1,14 @@
 TRANSFORMERS_VERBOSITY=info TOKENIZERS_PARALLELISM=true accelerate launch \
      --config_file config.yaml train.py \
      --lr 0.0001 \
-     --num-epochs 3 \
-     --model meta-llama/Meta-Llama-3-8B-Instruct \
-     --output-dir llama3-finetuned-lora \
-     --lora
+     --model meta-llama/Meta-Llama-3-8B \
+     --train-batch-size 64 \
+     --eval-batch-size 64 \
+     --sequence-length 1024 \
+     --log-interval 10 \
+     --num-epochs 5 \
+     --lora \
+     --lora-r 64 \
+     --lora-alpha 16 \
+     --lora-dropout 0.1 \
+     --output-dir llama3-finetuned-lora

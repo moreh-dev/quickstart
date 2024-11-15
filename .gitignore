@@ -183,4 +183,4 @@ merges.txt
 
 #checkpoints
 *_checkpoint
-
+*.tfevents*
