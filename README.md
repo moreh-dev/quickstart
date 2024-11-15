@@ -117,37 +117,27 @@ You can change model name in `--model` arguments to fine-tune your desired model
 If you want to fine-tune your model with the other dataset, you can fix `__call__` method of the `Preprocessor` class which is defined in `train_utils.py` to the desired format.
 
 ### Inference
-| **Baseline Model** | **Inference Script**             |
-| ------------------ | -------------------------------- |
-| Llama3 8B          | `tutorial/inference_llama3.py`   |
-| Llama2 7B          | `tutorial/inference_llama2.py`   |
-| Qwen1.5 7B         | `tutorial/inference_qwen.py`     |
-| Mistral 7B         | `tutorial/inference_mistral.py`  |
-| OPT 13B            | `tutorial/inference_opt.py`      |
-| Baichuan2 13B      | `tutorial/inference_baichuan.py` |
 
-Perform inference by running the inference script for each model. For example, to proceed with inference on fine-tuned Llama3 models:
+Perform inference by running the inference script for each model.
 
 ```bash 
-python tutorial/inference_llama3.py \ 
+python inference.py \ 
   --model-name-or-path ${SAVE_DIR_PATH}
 ```
 
 If you want to perform inference with LoRA weights, add `--use-lora` argument to the inference script/
 
 ```bash 
-python tutorial/inference_llama3.py \ 
+python inference.py \ 
   --model-name-or-path ${SAVE_DIR_PATH} \ 
   --use-lora
 ```
 
-```bash
+```
 # output example
-Llama3: [SUMMARIZE] (CNN)Arsenal kept their slim hopes of winning this season's English Premier League title alive by beating relegation threatened Burnley 1-0 at Turf Moor. A first half goal from Welsh international Aaron Ramsey was enough to separate the two sides and secure Arsenal's ... [/SUMMAIRZE]
-Arsenal beat Burnley 1-0 in the English Premier League.
-Aaron Ramsey scores the only goal of the game.
-Arsenal remain in second place.
-Chelsea can extend their lead to seven points.
+##INSTRUCTION What is the status of my return for {{Order Number}}?
+
+##RESPONSE Thank you for contacting us regarding the status of your return for order number {{Order Number}}. To provide you with accurate information, I kindly request you to visit the '{{Order Status}}' section on our website. There, you will find the most up-to-date details on the progress of your return. If you have any further questions or need additional assistance, please don't hesitate to let me know. I'm here to help you every step of the way!
 ```
 
 
