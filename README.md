@@ -13,7 +13,11 @@
     - [Inference](#inference)
   - [Stable Diffusion XL](#stable-diffusion-xl)
     - [Training](#training-1)
+    - [UNet full fine-tuning](#unet-full-fine-tuning)
+    - [LoRA fine-tuning(UNet)](#lora-fine-tuningunet)
+    - [LoRA fine-tuning(UNet + Text Encoder)](#lora-fine-tuningunet--text-encoder)
     - [Inference](#inference-1)
+    - [LoRA Inference](#lora-inference)
 # Quickstart
 
 This repository provides code to experiment with training large models on [Moreh's MoAI Platform](https://moreh.io/product).
@@ -156,10 +160,12 @@ Run the training script for Stable Diffusion XL:
 ```bash
 pip install -r requirements/requirements_sdxl.txt
 ```
+### UNet full fine-tuning
 
 ```bash 
 python train_sdxl.py \
   --epochs 20 \
+  --dataset-path lambdalabs/naruto-blip-captions \
   --batch-size 16 \
   --num-workers 8 \
   --lr=1e-05 \
@@ -168,13 +174,49 @@ python train_sdxl.py \
   --lr-scheduler linear 
 ```
 
+### LoRA fine-tuning(UNet)
+```bash
+python train_sdxl.py \
+  --epochs 20 \
+  --dataset-path lambdalabs/naruto-blip-captions \
+  --batch-size 16 \
+  --num-workers 8 \
+  --lr=1e-05 \
+  --save-dir=${LORA_WEIGHT_SAVE_DIR_PATH} \
+  --log-interval 1 \
+  --lr-scheduler linear 
+  --lora \
+  --rank 32
+  ```
+### LoRA fine-tuning(UNet + Text Encoder)
+```bash
+python train_sdxl.py \
+  --epochs 20 \
+  --dataset-path lambdalabs/naruto-blip-captions \
+  --batch-size 16 \
+  --num-workers 8 \
+  --lr=1e-05 \
+  --save-dir=${LORA_WEIGHT_SAVE_DIR_PATH} \
+  --log-interval 1 \
+  --lr-scheduler linear 
+  --lora \
+  --rank 32 \
+  --train-text-encoder
+```
 ### Inference 
 After training, you can proceed inference with your fine-tuned model using the following command:
+
 ```bash
 python inference_sdxl.py \
   --model-name-or-path=${SAVE_DIR_PATH}
 ```
 
+### LoRA Inference
+```bash
+python inference_sdxl.py \
+   --model-name-or-path=tabilityai/stable-diffusion-xl-base-1.0 \
+   --lora-weight=${LORA_WEIGHT_SAVE_DIR_PATH}
+```
 Adjust the prompt by editing the PROMPT variable in the inference script:
 ```python
 ...
