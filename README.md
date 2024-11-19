@@ -35,7 +35,7 @@ cd quickstart
 After you are in the `quickstart` directory, install the dependency packages by following commands :
 
 ```bash
-pip install -r requirements_llm.txt
+pip install -r requirements/requirements_llm.txt
 ```
 
 ## Model Preparation
@@ -154,7 +154,7 @@ We provide fine-tuning example code for the Stable Diffusion XL model.
 Run the training script for Stable Diffusion XL:
 
 ```bash
-pip install -r requirements_sdxl.txt
+pip install -r requirements/requirements_sdxl.txt
 ```
 
 ```bash 
