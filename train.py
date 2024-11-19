@@ -1,20 +1,29 @@
 import argparse
 
-from accelerate.logging import get_logger
 from accelerate import Accelerator
+from accelerate.logging import get_logger
 import datasets
 from datasets import load_dataset
-import transformers
-import torch
-from trl import SFTConfig, SFTTrainer
 from loguru import logger
+import torch
+import transformers
+from trl import SFTConfig
+from trl import SFTTrainer
 
-from train_utils import load_model, TrainCallback, Preprocessor
+from train_utils import load_model
+from train_utils import Preprocessor
+from train_utils import TrainCallback
+
 
 def arg_parse():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", type=str, default="meta-llama/Meta-Llama-3-8B")
-    parser.add_argument("--dataset", type=str, default="bitext/Bitext-customer-support-llm-chatbot-training-dataset")
+    parser.add_argument("--model",
+                        type=str,
+                        default="meta-llama/Meta-Llama-3-8B")
+    parser.add_argument(
+        "--dataset",
+        type=str,
+        default="bitext/Bitext-customer-support-llm-chatbot-training-dataset")
     parser.add_argument("--train-batch-size", type=int, default=64)
     parser.add_argument("--eval-batch-size", type=int, default=64)
     parser.add_argument("--sequence-length", type=int, default=1024)
@@ -30,13 +39,14 @@ def arg_parse():
     args = parser.parse_args()
     return args
 
+
 def main(args):
     try:
         import moreh
         torch.moreh.option.enable_advanced_parallelization()
     except ImportError:
         logger.warning("Cannot use Moreh Driver")
-        
+
     accelerator = Accelerator()
     logger = get_logger(__name__)
     logger.info(accelerator.state, main_process_only=True)
@@ -54,8 +64,8 @@ def main(args):
     preprocess = Preprocessor(model, tokenizer, args.sequence_length)
 
     dataset = dataset.map(preprocess, num_proc=1)
-    dataset = dataset.remove_columns(['flags', 'instruction', 'category', 'intent', 'response'])
-    total_train_steps = (len(dataset["train"]) // (args.train_batch_size)) * args.num_epochs
+    total_train_steps = (len(dataset["train"]) //
+                         (args.train_batch_size)) * args.num_epochs
 
     # SFTConfig
     trainer_config = SFTConfig(
@@ -75,18 +85,17 @@ def main(args):
         logging_first_step=True,
         report_to='none',
         logging_nan_inf_filter=False,
-        max_grad_norm = 0
-    )
-    
+        max_grad_norm=0)
+
     trainer = SFTTrainer(
         model,
         args=trainer_config,
         train_dataset=dataset['train'],
         eval_dataset=dataset['validation'],
-        callbacks=[TrainCallback(total_steps=total_train_steps)]
-    )
+        callbacks=[TrainCallback(total_steps=total_train_steps)])
 
     trainer.train()
+
 
 if __name__ == "__main__":
     args = arg_parse()
