@@ -1,6 +1,7 @@
 import argparse
-from diffusers import DDPMScheduler, StableDiffusionXLPipeline
 
+from diffusers import DDPMScheduler
+from diffusers import StableDiffusionXLPipeline
 import torch
 
 PROMPT = "A man with a black shirt"

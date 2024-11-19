@@ -1,4 +1,4 @@
-TOKENIZERS_PARALLELISM=true accelerate launch --config_file config.yaml train.py \
+TOKENIZERS_PARALLELISM=true accelerate launch --config_file config.yaml train_llm.py \
      --lr 0.0001 \
      --model meta-llama/Meta-Llama-3-8B \
      --train-batch-size 64 \

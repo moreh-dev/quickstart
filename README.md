@@ -35,7 +35,7 @@ cd quickstart
 After you are in the `quickstart` directory, install the dependency packages by following commands :
 
 ```bash
-pip install -r requirements.txt
+pip install -r requirements_llm.txt
 ```
 
 ## Model Preparation
@@ -80,7 +80,7 @@ Information about the models currently supported by this repository are as follo
 
  Run the training script to fully fine-tune the model. For example, if you want to fine-tune the llama-3 8B model:
 ```bash 
-TOKENIZERS_PARALLELISM=true accelerate launch --config_file config.yaml train.py \
+TOKENIZERS_PARALLELISM=true accelerate launch --config_file config.yaml train_llm.py \
      --lr 0.000001 \
      --model meta-llama/Meta-Llama-3-8B \
      --dataset bitext/Bitext-customer-support-llm-chatbot-training-dataset \
@@ -97,7 +97,7 @@ TOKENIZERS_PARALLELISM=true accelerate launch --config_file config.yaml train.py
 To train the LoRA adapter only, you can give a `--lora` argument with LoRA config parameters. 
 
 ```bash 
-TOKENIZERS_PARALLELISM=true accelerate launch --config_file config.yaml train.py \
+TOKENIZERS_PARALLELISM=true accelerate launch --config_file config.yaml train_llm.py \
      --lr 0.0001 \
      --model meta-llama/Meta-Llama-3-8B \
      --dataset bitext/Bitext-customer-support-llm-chatbot-training-dataset \
@@ -121,14 +121,14 @@ If you want to fine-tune your model with the other dataset, you can fix `__call_
 Perform inference by running the inference script for each model.
 
 ```bash 
-python inference.py \ 
+python inference_llm.py \ 
   --model-name-or-path ${SAVE_DIR_PATH}
 ```
 
 If you want to perform inference with LoRA weights, add `--use-lora` argument to the inference script/
 
 ```bash 
-python inference.py \ 
+python inference_llm.py \ 
   --model-name-or-path ${SAVE_DIR_PATH} \ 
   --use-lora
 ```
@@ -153,8 +153,12 @@ We provide fine-tuning example code for the Stable Diffusion XL model.
 
 Run the training script for Stable Diffusion XL:
 
+```bash
+pip install -r requirements_sdxl.txt
+```
+
 ```bash 
-python tutorial/train_sdxl.py \
+python train_sdxl.py \
   --epochs 20 \
   --batch-size 16 \
   --num-workers 8 \
@@ -167,7 +171,7 @@ python tutorial/train_sdxl.py \
 ### Inference 
 After training, you can proceed inference with your fine-tuned model using the following command:
 ```bash
-python tutorial/inference_sdxl.py \
+python inference_sdxl.py \
   --model-name-or-path=${SAVE_DIR_PATH}
 ```
 
