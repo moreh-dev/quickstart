@@ -7,12 +7,12 @@ from datasets import load_dataset
 import transformers
 import torch
 from trl import SFTConfig, SFTTrainer
+from loguru import logger
 
 from train_utils import load_model, TrainCallback, Preprocessor
 
 def arg_parse():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--lora", action="store_true")
     parser.add_argument("--model", type=str, default="meta-llama/Meta-Llama-3-8B")
     parser.add_argument("--dataset", type=str, default="bitext/Bitext-customer-support-llm-chatbot-training-dataset")
     parser.add_argument("--train-batch-size", type=int, default=64)
@@ -23,6 +23,7 @@ def arg_parse():
     parser.add_argument("--num-epochs", type=int, default=5)
     parser.add_argument("--max-steps", type=int, default=-1)
     parser.add_argument("--log-interval", type=int, default=10)
+    parser.add_argument("--lora", action="store_true")
     parser.add_argument("--lora-r", type=int, default=64)
     parser.add_argument("--lora-alpha", type=int, default=16)
     parser.add_argument("--lora-dropout", type=float, default=0.1)
@@ -30,8 +31,12 @@ def arg_parse():
     return args
 
 def main(args):
-    torch.moreh.option.enable_advanced_parallelization()
-
+    try:
+        import moreh
+        torch.moreh.option.enable_advanced_parallelization()
+    except ImportError:
+        logger.warning("Cannot use Moreh Driver")
+        
     accelerator = Accelerator()
     logger = get_logger(__name__)
     logger.info(accelerator.state, main_process_only=True)
