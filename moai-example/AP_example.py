@@ -31,7 +31,7 @@ def parse_args():
     parser.add_argument(
         "--model-name-or-path",
         type=str,
-        default="meta-llama/Llama-2-13b",
+        default="meta-llama/Llama-2-13b-hf",
         help="model name or path",
     )
     parser.add_argument(
@@ -141,10 +141,13 @@ def main(args):
             input_ids = batch["input_ids"]
             inputs, labels = input_ids, mask_pads(input_ids, tokenizer)
             attn_mask = create_mask(inputs, tokenizer)
+            position_ids = attn_mask.long().cumsum(-1) - 1
+            position_ids.masked_fill_(attn_mask == 0, 1)
             outputs = model(
                 input_ids.cuda(),
                 attention_mask=attn_mask.cuda(),
                 labels=labels.cuda(),
+                position_ids=position_ids.cuda(),
                 use_cache=False,            
             )
             loss = outputs[0]
