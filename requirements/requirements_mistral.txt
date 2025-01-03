@@ -1,5 +1,0 @@
-transformers==4.43.0
-accelerate==0.29.3
-datasets==2.19.0
-loguru==0.7.2
-sentencepiece
