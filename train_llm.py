@@ -1,14 +1,11 @@
 import argparse
 
-from accelerate import Accelerator
-from accelerate.logging import get_logger
 import datasets
 from datasets import load_dataset
 from loguru import logger
 import torch
 import transformers
-from trl import SFTConfig
-from trl import SFTTrainer
+from transformers import Trainer, TrainingArguments, ProgressCallback
 
 from train_utils import load_model
 from train_utils import Preprocessor
@@ -47,11 +44,6 @@ def main(args):
     except ImportError:
         logger.warning("Cannot use Moreh Driver")
 
-    accelerator = Accelerator()
-    logger = get_logger(__name__)
-    logger.info(accelerator.state, main_process_only=True)
-    logger.warning(accelerator.state, main_process_only=True)
-
     datasets.utils.logging.set_verbosity_warning()
     transformers.utils.logging.set_verbosity_info()
 
@@ -68,13 +60,12 @@ def main(args):
                          (args.train_batch_size)) * args.num_epochs
 
     # SFTConfig
-    trainer_config = SFTConfig(
+    trainer_config = TrainingArguments(
         num_train_epochs=args.num_epochs,
         max_steps=args.max_steps,
         per_device_train_batch_size=args.train_batch_size,
         per_device_eval_batch_size=args.eval_batch_size,
         output_dir=args.output_dir,
-        max_seq_length=args.sequence_length,
         optim='adamw_torch',
         lr_scheduler_type="cosine",
         learning_rate=args.lr,
@@ -85,15 +76,16 @@ def main(args):
         logging_first_step=True,
         report_to='none',
         logging_nan_inf_filter=False,
-        max_grad_norm=0)
-
-    trainer = SFTTrainer(
+        max_grad_norm=1)
+    
+    trainer = Trainer(
         model,
         args=trainer_config,
         train_dataset=dataset['train'],
         eval_dataset=dataset['validation'],
-        callbacks=[TrainCallback(total_steps=total_train_steps)])
-
+        callbacks=[TrainCallback(total_steps=total_train_steps, max_seq_length=args.sequence_length)])
+    # remove default ProgressCallback to Use MorehCallback
+    trainer.remove_callback(ProgressCallback)
     trainer.train()
 
 
