@@ -1,19 +1,21 @@
 import argparse
-import time
-import torch
 import os
+import sys
+import time
 
-from torch.optim import AdamW
-from loguru import logger
-from torch.utils.data import DataLoader
+import albumentations as A
+from albumentations.pytorch.transforms import ToTensorV2
 import datasets
 from diffusers.optimization import get_scheduler
-from albumentations.pytorch.transforms import ToTensorV2
-from transformers import AutoTokenizer
-import albumentations as A
+from loguru import logger
 import numpy as np
-import sys, os
-from peft import LoraConfig, set_peft_model_state_dict
+from peft import LoraConfig
+from peft import set_peft_model_state_dict
+import torch
+from torch.optim import AdamW
+from torch.utils.data import DataLoader
+from transformers import AutoTokenizer
+
 from model.modeling_sdxl import SDXL
 
 
@@ -31,51 +33,64 @@ def parse_args():
         "--lr-scheduler",
         type=str,
         default="constant",
-        help=(
-            'The scheduler type to use. Choose between ["linear", "cosine", "cosine_with_restarts", "polynomial",'
-            ' "constant", "constant_with_warmup"]'
-        ),
+        help=
+        ('The scheduler type to use. Choose between ["linear", "cosine", "cosine_with_restarts", "polynomial",'
+         ' "constant", "constant_with_warmup"]'),
     )
-    parser.add_argument("--accum-step", type=int, default=1, help="grad accum step")
-    parser.add_argument(
-        "--epochs", type=int, default=1, help="number of training epoch"
-    )
-    parser.add_argument("--batch-size", type=int, default=16, help="train batch size")
-    parser.add_argument(
-        "--num-workers", type=int, default=4, help="number of data loader workers"
-    )
-    parser.add_argument("--log-interval", type=int, default=1, help="logging interval")
-    parser.add_argument(
-        "--dataset-path", type=str, default="lambdalabs/naruto-blip-captions"
-    )
+    parser.add_argument("--accum-step",
+                        type=int,
+                        default=1,
+                        help="grad accum step")
+    parser.add_argument("--epochs",
+                        type=int,
+                        default=1,
+                        help="number of training epoch")
+    parser.add_argument("--batch-size",
+                        type=int,
+                        default=16,
+                        help="train batch size")
+    parser.add_argument("--num-workers",
+                        type=int,
+                        default=4,
+                        help="number of data loader workers")
+    parser.add_argument("--log-interval",
+                        type=int,
+                        default=1,
+                        help="logging interval")
+    parser.add_argument("--dataset-path",
+                        type=str,
+                        default="lambdalabs/naruto-blip-captions")
     parser.add_argument("--save-dir", type=str, default="sdxl-finetuned")
-    parser.add_argument(
-        "--save-bf-model", action="store_true", help="whether to save bfloat model"
-    )
+    parser.add_argument("--save-bf-model",
+                        action="store_true",
+                        help="whether to save bfloat model")
     parser.add_argument(
         "--unet-config",
         type=str,
         default=None,
-        help="unet configuration. if not specified, just use the SDXL-version UNet.",
+        help=
+        "unet configuration. if not specified, just use the SDXL-version UNet.",
     )
     parser.add_argument("--use-custom-dataset", action="store_true")
     # LoRA
     parser.add_argument("--lora", action="store_true", help="enable LoRA")
-    parser.add_argument(
-        "--train-text-encoder", action="store_true", help="Adapt LoRA to text encoders"
-    )
+    parser.add_argument("--train-text-encoder",
+                        action="store_true",
+                        help="Adapt LoRA to text encoders")
     parser.add_argument("--rank", type=int, default=32, help="LoRA rank")
     parser.add_argument(
         "--prediction_type",
         type=str,
         default=None,
-        help="The prediction_type that shall be used for training. Choose between 'epsilon' or 'v_prediction' or leave `None`. If left to `None` the default prediction type of the scheduler: `noise_scheduler.config.prediction_type` is chosen.",
+        help=
+        "The prediction_type that shall be used for training. Choose between 'epsilon' or 'v_prediction' or leave `None`. If left to `None` the default prediction type of the scheduler: `noise_scheduler.config.prediction_type` is chosen.",
     )
     parser.add_argument(
         "--validation-prompt",
         type=str,
         default=None,
-        help="A prompt that is used during validation to verify that the model is learning.",
+        help=
+        "A prompt that is used during validation to verify that the model is learning.",
     )
     parser.add_argument(
         "--img-size",
@@ -128,22 +143,20 @@ def rectangle_img_to_square(img):
 
 
 class TextImageSDXLCollator:
+
     def __init__(self, model, image_size=1024):
-        image_size = (
-            image_size
-            if type(image_size) in [tuple, list]
-            else (image_size, image_size)
-        )
+        image_size = (image_size if type(image_size) in [tuple, list] else
+                      (image_size, image_size))
         height, width = image_size
-        self.tokenizer = AutoTokenizer.from_pretrained(model, subfolder="tokenizer")
-        self.tokenizer_2 = AutoTokenizer.from_pretrained(model, subfolder="tokenizer_2")
-        self.transform = A.Compose(
-            [
-                A.Lambda(lambda img, **kwargs: rectangle_img_to_square(img)),
-                A.Resize(height=height, width=width),
-                ToTensorV2(),
-            ]
-        )
+        self.tokenizer = AutoTokenizer.from_pretrained(model,
+                                                       subfolder="tokenizer")
+        self.tokenizer_2 = AutoTokenizer.from_pretrained(
+            model, subfolder="tokenizer_2")
+        self.transform = A.Compose([
+            A.Lambda(lambda img, **kwargs: rectangle_img_to_square(img)),
+            A.Resize(height=height, width=width),
+            ToTensorV2(),
+        ])
 
     def __call__(self, batch):
         """
@@ -167,13 +180,13 @@ class TextImageSDXLCollator:
                     return_tensors="pt",
                 )
                 token_input_ids = tokens.input_ids
-                untruncated_ids = tokenizer(
-                    caption, padding="longest", return_tensors="pt"
-                ).input_ids
+                untruncated_ids = tokenizer(caption,
+                                            padding="longest",
+                                            return_tensors="pt").input_ids
 
-                if untruncated_ids.shape[-1] >= token_input_ids.shape[
-                    -1
-                ] and not torch.equal(token_input_ids, untruncated_ids):
+                if untruncated_ids.shape[
+                        -1] >= token_input_ids.shape[-1] and not torch.equal(
+                            token_input_ids, untruncated_ids):
                     pass
                     # (MAF) NOTE: Below tensor indexing (from original StableDiffusionXLPipeline) raises ValueError: step must be greater than zero.
                     # not sure CUDA system raises same error.
@@ -244,8 +257,7 @@ def main(args):
         model.unet.add_adapter(unet_lora_config)
 
         params_to_optimize = list(
-            filter(lambda p: p.requires_grad, model.unet.parameters())
-        )
+            filter(lambda p: p.requires_grad, model.unet.parameters()))
 
         if args.train_text_encoder:
             # ensure that dtype is float32, even if rest of the model that isn't trained is loaded in fp16
@@ -257,15 +269,11 @@ def main(args):
             )
             model.text_encoder.add_adapter(text_lora_config)
             model.text_encoder_2.add_adapter(text_lora_config)
-            params_to_optimize = (
-                params_to_optimize
-                + list(
-                    filter(lambda p: p.requires_grad, model.text_encoder.parameters())
-                )
-                + list(
-                    filter(lambda p: p.requires_grad, model.text_encoder_2.parameters())
-                )
-            )
+            params_to_optimize = (params_to_optimize + list(
+                filter(lambda p: p.requires_grad,
+                       model.text_encoder.parameters())) + list(
+                           filter(lambda p: p.requires_grad,
+                                  model.text_encoder_2.parameters())))
         optim = AdamW(params_to_optimize, lr=args.lr, weight_decay=1e-2)
     else:
         optim = AdamW(model.parameters(), lr=args.lr)
@@ -285,8 +293,7 @@ def main(args):
 
     if not is_moreh:
         model, optim, train_data_loader = accelerator.prepare(
-            model, optim, train_data_loader
-        )
+            model, optim, train_data_loader)
     total_step_per_epoch = len(train_data_loader)
     lr_scheduler = get_scheduler(
         args.lr_scheduler,
@@ -324,8 +331,7 @@ def main(args):
                     f"Step : [{nbatch // args.accum_step}/{total_step_per_epoch // args.accum_step}] | "
                     f"Loss: {log_loss:.6f} | "
                     f"duration: {duration:.2f} | "
-                    f"throughput: {throughput:.2f} imgs/sec"
-                )
+                    f"throughput: {throughput:.2f} imgs/sec")
 
             total_steps += 1
 
@@ -336,33 +342,32 @@ def main(args):
                     model.text_encoder.eval()
                     model.text_encoder_2.eval()
                 generator = torch.Generator().manual_seed(args.seed)
-                img = model.pipe(
-                    args.validation_prompt, num_inference_steps=25, generator=generator
-                )
+                img = model.pipe(args.validation_prompt,
+                                 num_inference_steps=25,
+                                 generator=generator)
                 img.images[0].save(
-                    os.path.join(args.save_dir, f"sdxl_validation_{epoch}.png")
-                )
+                    os.path.join(args.save_dir, f"sdxl_validation_{epoch}.png"))
 
     if (total_steps - 1) % args.log_interval != 0:
         log_loss = loss.item()
         duration = time.perf_counter() - start_time
-        throughput = (args.batch_size * (total_steps % args.log_interval)) / duration
+        throughput = (args.batch_size *
+                      (total_steps % args.log_interval)) / duration
         start_time = time.perf_counter()
         logger.info(
             f"Epoch: {epoch} | "
             f"Step : [{nbatch // args.accum_step}/{total_step_per_epoch // args.accum_step}] | "
             f"Loss: {log_loss:.6f} | "
             f"duration: {duration:.2f} | "
-            f"throughput: {throughput:.2f} imgs/sec"
-        )
+            f"throughput: {throughput:.2f} imgs/sec")
 
     if args.save_bf_model:
         model = model.bfloat16()
 
     logger.info(f"save model to {args.save_dir}")
-    model.save_pretrained(
-        args.save_dir, is_lora=args.lora, train_text_encoder=args.train_text_encoder
-    )
+    model.save_pretrained(args.save_dir,
+                          is_lora=args.lora,
+                          train_text_encoder=args.train_text_encoder)
     logger.info("model save finished")
 
 

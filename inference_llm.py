@@ -10,12 +10,9 @@ def parse_args():
     parser.add_argument("--max-length", type=int, default=512)
     parser.add_argument("--model-name-or-path",
                         type=str,
-                        default="./mistral_code_generation")
+                        default="llama3-finetuned")
     parser.add_argument("--use-lora", action="store_true")
     return parser.parse_args()
-
-
-# Saved model path
 
 
 def main(args):
@@ -26,7 +23,6 @@ def main(args):
     else:
         from peft import PeftConfig
         from peft import PeftModel
-
         config = PeftConfig.from_pretrained(args.model_name_or_path)
         model = AutoModelForCausalLM.from_pretrained(
             config.base_model_name_or_path)
@@ -34,27 +30,25 @@ def main(args):
             config.base_model_name_or_path)
         model = PeftModel.from_pretrained(model, args.model_name_or_path)
         model = model.merge_and_unload()
-    model.cuda()
     model.eval()
+    model.cuda()
 
     # Prepare test prompt
-    input_text = f"Below is an instruction that describes a task. Write a response that appropriately completes the request.\n\n### Instruction:\nCreate a function to join given list of strings with space.\n\n### Input:\n['I', 'love', 'you']\n\n### Output:\n"
+    input_text = "##INSTRUCTION What is the status of my return for {{Order Number}}? \n\n ##RESPONSE "
     tokenized_input = tokenizer(input_text, return_tensors="pt")
-    input_ids = tokenized_input["input_ids"].to("cuda")
-    attention_mask = tokenized_input["attention_mask"].to("cuda")
+    input_ids = tokenized_input['input_ids'].to('cuda')
+    attention_mask = tokenized_input['attention_mask'].to('cuda')
 
     with torch.no_grad():
         # Generate python function
-        output = model.generate(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            max_new_tokens=args.max_length,
-            pad_token_id=tokenizer.eos_token_id,
-        )
+        output = model.generate(input_ids=input_ids,
+                                attention_mask=attention_mask,
+                                max_new_tokens=args.max_length,
+                                pad_token_id=tokenizer.eos_token_id)
 
         # Decode generated tokens
         generated_text = tokenizer.decode(output[0], skip_special_tokens=True)
-        print(f"Mistral: {generated_text}")
+        print(f"{generated_text}")
 
 
 if __name__ == "__main__":
