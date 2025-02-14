@@ -59,7 +59,6 @@ def main(args):
     total_train_steps = (len(dataset["train"]) //
                          (args.train_batch_size)) * args.num_epochs
 
-    # SFTConfig
     trainer_config = TrainingArguments(
         num_train_epochs=args.num_epochs,
         max_steps=args.max_steps,
